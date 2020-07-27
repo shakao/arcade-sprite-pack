@@ -8,13 +8,16 @@ export interface AssetInfo {
 
 interface AssetProps {
     info: AssetInfo;
+    selected: boolean;
+    onClick?: (e: any) => void;
 }
 
 export class Asset extends React.Component<AssetProps, {}> {
     render() {
-        const { name, jres } = this.props.info;
+        const { info, selected, onClick } = this.props;
+        const { name, jres } = info;
 
-        return <div className="asset">
+        return <div className={`asset ${selected ? "selected" : ""}`} onClick={onClick}>
             <div className="asset-img">{jres}</div>
             <div className="asset-title"><span>{name}</span></div>
         </div>

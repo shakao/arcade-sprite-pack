@@ -3,6 +3,8 @@
     flex-direction: column;
     background-color: var(--editing-tools-bg-color);
     width: 7rem;
+    overflow-x: hidden;
+    overflow-y: scroll;
 }
 
 .asset-list-buttons {
