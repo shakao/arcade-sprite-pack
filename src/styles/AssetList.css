@@ -1,0 +1,21 @@
+#asset-list {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--editing-tools-bg-color);
+    width: 7rem;
+}
+
+.asset-list-buttons {
+    display: flex;
+    margin: 0.4rem 0.4rem 0;
+    justify-content: space-between;
+}
+
+.asset-button {
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 1px solid var(--sidebar-icon-inactive-color);
+    color: var(--sidebar-icon-inactive-color);
+    border-radius: .25rem;
+    text-align: center;
+}

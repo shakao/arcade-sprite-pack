@@ -1,0 +1,13 @@
+body, html, #root {
+  height: 100%;
+}
+
+.app {
+  display: flex;
+  height: 100%;
+}
+
+#editor {
+  flex: 1;
+  border: 0;
+}
