@@ -15,7 +15,7 @@ interface JRes {
     tileset?: string[];
 }
 
-const arcadePalette = [
+export const arcadePalette = [
     "#000000",
     "#ffffff",
     "#ff2121",
