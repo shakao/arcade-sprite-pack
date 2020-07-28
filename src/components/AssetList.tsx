@@ -88,7 +88,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     getJres = () => {
-        this.props.postMessage({ type: "update" })
+        this.props.postMessage({ type: "update" });
     }
 
     /** ASSET HANDLING */
@@ -98,7 +98,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
             name: this.getValidAssetName(name || DEFAULT_NAME),
             jres: { ...DEFAULT_JRES }
         })
-        this.setState({ items: this._items })
+        this.setState({ items: this._items });
     }
 
     deleteAsset(index: number) {
@@ -109,12 +109,19 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
          })
     }
 
+    renameAsset(index: number, newName: string) {
+        if (this._items[index].name != newName) {
+            this._items[index].name = this.getValidAssetName(newName);
+            this.setState({ items: this._items });
+        }
+    }
+
     getAssetIndex(name: string): number {
-        return this._items.findIndex((el) => el.name === name);
+        return this._items.findIndex((el) => el.name.toLowerCase() === name.toLowerCase());
     }
 
     getValidAssetName(name: string): string {
-        name = name.replace(/^[\s\xa0]+|[\s\xa0]+$/g, '');
+        name = name.replace(/[^a-zA-Z0-9]/g, '');
         while (this.getAssetIndex(name) >= 0) {
             let r = name.match(/^(.*?)(\d+)$/);
             // increment counter by one
@@ -125,10 +132,14 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     /** ASSET EVENT LISTENERS */
 
-    onAssetClick = (asset: AssetInfo): (e: any) => void => {
+    onAssetClick = (index: number): (e: any) => void => {
         return () => {
-            this.setState({ saving: this.getAssetIndex(asset.name) });
+            this.setState({ saving: index });
         }
+    }
+
+    onAssetRename = (index: number): (name: string) => void => {
+        return (name: string) => { this.renameAsset(index, name) };
     }
 
     onAddButtonClick = () => {
@@ -150,8 +161,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                 <div className="asset-button" title="Delete asset" onClick={this.onDeleteButtonClick}>
                     <i className="icon delete"></i>
                 </div>
-                <div className="asset-button" title="Rename asset">
-                    <i className="icon i cursor"></i>
+                <div className="asset-button" title="Export assets">
+                    <i className="icon download"></i>
                 </div>
             </div>
             <div>
@@ -160,7 +171,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         key={i}
                         info={item}
                         selected={i === selected}
-                        onClick={this.onAssetClick(item)} />
+                        onClick={this.onAssetClick(i)}
+                        onRename={this.onAssetRename(i)} />
                 }) }
             </div>
         </div>
