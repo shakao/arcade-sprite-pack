@@ -12,3 +12,7 @@
 .asset.selected {
     border-color: var(--sidebar-icon-active-color);
 }
+
+.asset-img {
+    display: none;
+}

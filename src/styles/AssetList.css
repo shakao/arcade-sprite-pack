@@ -4,20 +4,22 @@
     background-color: var(--editing-tools-bg-color);
     width: 7rem;
     overflow-x: hidden;
-    overflow-y: scroll;
+    overflow-y: auto;
 }
 
 .asset-list-buttons {
     display: flex;
-    margin: 0.4rem 0.4rem 0;
     justify-content: space-between;
+    height: 1.7rem;
+    padding: 0.4rem 0.4rem 0;
+    background-color: var(--sidebar-bg-color);
 }
 
 .asset-button {
-    width: 1.5rem;
-    height: 1.5rem;
-    border: 1px solid var(--sidebar-icon-inactive-color);
+    width: 1.2rem;
+    height: 1.2rem;
+    line-height: 1.2rem;
     color: var(--sidebar-icon-inactive-color);
-    border-radius: .25rem;
     text-align: center;
+    cursor: pointer;
 }
