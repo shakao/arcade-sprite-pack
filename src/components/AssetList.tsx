@@ -2,23 +2,50 @@ import React from 'react';
 import { Asset, AssetInfo } from './Asset';
 import '../styles/AssetList.css';
 
+interface AssetListProps {
+    onItemSelect?: (item: AssetInfo) => void;
+}
+
 interface AssetListState {
     items: AssetInfo[];
-    selected: string;
+    selected: number;
 }
 
 const DEFAULT_NAME = "mySprite";
+const DEFAULT_JRES = "hwQQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
 
-class AssetList extends React.Component<{}, AssetListState> {
-    constructor(props: {}) {
+class AssetList extends React.Component<AssetListProps, AssetListState> {
+    constructor(props: AssetListProps) {
         super(props);
         this.state = {
-            items: [{
-                name: DEFAULT_NAME,
-                jres: ""
-            }],
-            selected: DEFAULT_NAME
+            items: [{ name: DEFAULT_NAME, jres: DEFAULT_JRES }],
+            selected: 0
         };
+    }
+
+    componentDidMount() {
+        window.addEventListener("message", this.handleMessage);
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener("message", this.handleMessage);
+    }
+
+    handleMessage = (msg: any) => {
+        const data = msg.data;
+        switch (data.type) {
+            case "update":
+                const items = this.state.items;
+                items[this.state.selected].jres = data.message;
+                this.setState({ items });
+                break;
+            default:
+                break;
+        }
+    }
+
+    getJres = () => {
+        // this.postMessage({ type: "update" })
     }
 
     /** ASSET HANDLING */
@@ -27,19 +54,22 @@ class AssetList extends React.Component<{}, AssetListState> {
         const items = this.state.items;
         items.push({
             name: this.getValidAssetName(name || DEFAULT_NAME),
-            jres: ""
+            jres: DEFAULT_JRES
         })
         this.setState({ items })
     }
 
-    deleteAsset(name: string) {
+    deleteAsset(index: number) {
         const items = this.state.items;
-        const index = this.getAssetIndex(name);
         items.splice(index, 1);
         this.setState({
             items,
-            selected: items[Math.max(index - 1, 0)].name
+            selected: Math.max(index - 1, 0)
          })
+    }
+
+    getAssetIndex(name: string): number {
+        return this.state.items.findIndex((el) => el.name === name);
     }
 
     getValidAssetName(name: string): string {
@@ -52,14 +82,13 @@ class AssetList extends React.Component<{}, AssetListState> {
         return name;
     }
 
-    getAssetIndex(name: string): number {
-        return this.state.items.findIndex((el) => el.name === name);
-    }
+    /** ASSET EVENT LISTENERS */
 
-    /** EVENT LISTENERS */
-
-    onAssetClick = (name: string): (e: any) => void => {
-        return () => this.setState({ selected: name });
+    onAssetClick = (asset: AssetInfo): (e: any) => void => {
+        return () => {
+            if (this.props.onItemSelect) this.props.onItemSelect(asset);
+            this.setState({ selected: this.getAssetIndex(asset.name) });
+        }
     }
 
     onAddButtonClick = () => {
@@ -75,17 +104,23 @@ class AssetList extends React.Component<{}, AssetListState> {
 
         return <div id="asset-list">
             <div className="asset-list-buttons">
-                <div className="asset-button" onClick={this.onAddButtonClick}>+</div>
-                <div className="asset-button" onClick={this.onDeleteButtonClick}>x</div>
-                <div className="asset-button">Tt</div>
+                <div className="asset-button" title="Add asset" onClick={this.onAddButtonClick}>
+                    <i className="icon plus"></i>
+                </div>
+                <div className="asset-button" title="Delete asset" onClick={this.onDeleteButtonClick}>
+                    <i className="icon delete"></i>
+                </div>
+                <div className="asset-button" title="Rename asset">
+                    <i className="icon i cursor"></i>
+                </div>
             </div>
             <div>
                 { items.map((item, i) => {
                     return <Asset
                         key={i}
                         info={item}
-                        selected={item.name === selected}
-                        onClick={this.onAssetClick(item.name)} />
+                        selected={i === selected}
+                        onClick={this.onAssetClick(item)} />
                 }) }
             </div>
         </div>
