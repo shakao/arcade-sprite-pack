@@ -9,10 +9,24 @@
     position: relative;
 }
 
-.asset.selected {
+.asset.selected,
+.selected .asset-title {
     border-color: var(--sidebar-icon-active-color);
 }
 
-.asset-img {
-    display: none;
+.asset-img > img {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+
+.asset-title {
+    position: absolute;
+    width: 100%;
+    padding: 0.1rem 0.4rem;
+    bottom: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-top: 1px solid var(--sidebar-icon-inactive-color);
+    background-color: var(--editing-tools-bg-color);
 }

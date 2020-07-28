@@ -1,4 +1,3 @@
-
 export interface JRESImage {
     data: string; // Base64 encoded string of f4 encoded bytes
     previewURI: string; // PNG data uri
@@ -133,6 +132,7 @@ function f4EncodeImgCore(w: number, h: number, bpp: number, getPix: (x: number, 
 
     let pushBits = (n: number) => {
         curr |= n << shift
+        // eslint-disable-next-line
         if (shift == 8 - bpp) {
             r += hex2(curr)
             ptr++
@@ -146,6 +146,7 @@ function f4EncodeImgCore(w: number, h: number, bpp: number, getPix: (x: number, 
     for (let i = 0; i < w; ++i) {
         for (let j = 0; j < h; ++j)
             pushBits(getPix(i, j))
+        // eslint-disable-next-line
         while (shift != 0)
             pushBits(0)
         if (bpp > 1) {
@@ -275,6 +276,7 @@ function jresDataToBitmap(jresURL: string) {
             for (let y = 0; y < h; ++y) {
                 out.set(x, y, (v & mask) ? 1 : 0);
                 mask <<= 1
+                // eslint-disable-next-line
                 if (mask == 0x100) {
                     mask = 0x01
                     v = data.charCodeAt(index++)
@@ -288,6 +290,7 @@ function jresDataToBitmap(jresURL: string) {
             for (let y = 0; y < h; y += 2) {
                 let v = data.charCodeAt(index++)
                 out.set(x, y, v & 0xf);
+                // eslint-disable-next-line
                 if (y != h - 1) {
                     out.set(x, y + 1, (v >> 4) & 0xf);
                 }
@@ -304,6 +307,7 @@ function imageLiteralToBitmap(text: string, defaultPattern?: string): Bitmap {
     // replace encoded characters because the compiler will catch any disallowed characters and throw
     // an error before the decompilation happens. 96 is backtick and 9 is tab
     text = text.replace(/[ `]|(?:&#96;)|(?:&#9;)|(?:img)/g, "").trim();
+    // eslint-disable-next-line
     text = text.replace(/^["`\(\)]*/, '').replace(/["`\(\)]*$/, '');
     text = text.replace(/&#10;/g, "\n");
 
