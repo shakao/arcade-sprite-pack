@@ -98,7 +98,10 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
             name: this.getValidAssetName(name || DEFAULT_NAME),
             jres: { ...DEFAULT_JRES }
         })
-        this.setState({ items: this._items });
+        this.setState({
+            items: this._items,
+            selected: this._items.length - 1
+         });
     }
 
     deleteAsset(index: number) {
@@ -110,7 +113,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     renameAsset(index: number, newName: string) {
-        if (this._items[index].name != newName) {
+        if (this._items[index].name !== newName) {
             this._items[index].name = this.getValidAssetName(newName);
             this.setState({ items: this._items });
         }
