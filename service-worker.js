@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
 
 importScripts(
-  "/arcade-sprite-pack/precache-manifest.36f228e0d3825179f55e84a7ef3595fb.js"
+  "/arcade-sprite-pack/precache-manifest.f0bbd28cd9a9a30d45aae13a9e1e23a4.js"
 );
 
 self.addEventListener('message', (event) => {
