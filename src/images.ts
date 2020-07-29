@@ -1,3 +1,5 @@
+import { uint8ArrayToString, hexToUint8Array } from "./util";
+
 export interface JRESImage {
     data: string; // Base64 encoded string of f4 encoded bytes
     previewURI: string; // PNG data uri
@@ -398,17 +400,3 @@ function bitmapToImageURI(frame: Bitmap, colors: string[]) {
     return canvas.toDataURL();
 }
 
-function hexToUint8Array(hex: string) {
-    let r = new Uint8ClampedArray(hex.length >> 1);
-    for (let i = 0; i < hex.length; i += 2)
-        r[i >> 1] = parseInt(hex.slice(i, i + 2), 16)
-    return r
-}
-
-function uint8ArrayToString(input: ArrayLike<number>) {
-    let len = input.length;
-    let res = ""
-    for (let i = 0; i < len; ++i)
-        res += String.fromCharCode(input[i]);
-    return res;
-}
