@@ -6,7 +6,7 @@ import { arcadePalette, fetchMakeCodeScriptAsync } from '../share';
 import '../styles/AssetList.css';
 
 interface AlertInfo extends AlertProps {
-    type: "delete" | "import" | "warning";
+    type: "delete" | "import" | "warning" | "export";
 }
 
 interface AssetListProps {
@@ -219,6 +219,28 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     onExportButtonClick = () => {
         // ensure we have most updated sprites
         this.getJres();
+        this.setState({
+            alert: {
+                type: "export",
+                icon: "download",
+                title: "Export Sprite Pack",
+                text: "Export your sprites as an .mckd project to load directly into Arcade, or as a .ts file with your images encoded.",
+                options: [{
+                        text: "Download MKCD",
+                        onClick: () => {
+                            // download as MKCD
+                            this.hideAlert();
+                        }
+                    },
+                    {
+                        text: "Download TS",
+                        onClick: () => {
+                            // download as TS
+                            this.hideAlert();
+                        }
+                    }]
+            }
+        })
     }
 
     hideAlert = () => {
