@@ -4,6 +4,7 @@ import '../styles/Alert.css';
 interface AlertOption {
     text: string;
     onClick: () => void;
+    style?: { [key: string]: string };
 }
 
 export interface AlertProps {
@@ -36,7 +37,7 @@ export class Alert extends React.Component<AlertProps, {}> {
                 {this.props.children && this.props.children}
                 {options && <div className="alert-options">
                     {options.map((el, i) => {
-                        return <div key={i} onClick={el.onClick}>{el.text}</div>
+                        return <div key={i} onClick={el.onClick} style={el.style}>{el.text}</div>
                     })}
                 </div>}
             </div>
