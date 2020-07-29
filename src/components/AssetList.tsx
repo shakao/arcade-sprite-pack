@@ -141,6 +141,15 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         }
     }
 
+    clearAssets() {
+        this._items.length = 0;
+        this._items.push({
+            name: this.getValidAssetName(DEFAULT_NAME),
+            jres: { ...DEFAULT_JRES }
+        })
+        this.setState({ items: this._items, selected: 0 });
+    }
+
     importAssets(url: string, replace?: boolean) {
         fetchMakeCodeScriptAsync(url).then((res: {projectImages: JRESImage[]}) => {
             if (replace) this._items = [];
@@ -177,11 +186,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         return (name: string) => { this.renameAsset(index, name) };
     }
 
-    onAddButtonClick = () => {
-        this.addAsset(DEFAULT_NAME);
-    }
-
-    onDeleteButtonClick = () => {
+    onAssetDelete = () => {
         if (this._items.length > 1) {
             this.setState({
                 alert: {
@@ -208,6 +213,31 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                 }
             })
         }
+    }
+
+    onAddButtonClick = () => {
+        this.addAsset(DEFAULT_NAME);
+    }
+
+    onDeleteButtonClick = () => {
+        this.setState({
+            alert: {
+                type: "delete",
+                icon: "exclamation triangle",
+                title: "WARNING",
+                text: "This will delete ALL assets in this project. You will not be able to undo this action.",
+                options: [{
+                        text: "Delete All",
+                        style: {
+                            backgroundColor: "#dc3f34"
+                        },
+                        onClick: () => {
+                            this.clearAssets();
+                            this.hideAlert();
+                        }
+                    }]
+            }
+        })
     }
 
     onImportButtonClick = () => {
@@ -314,6 +344,9 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                 <div className="asset-button" title="Add asset" onClick={this.onAddButtonClick}>
                     <i className="icon plus square outline"></i>
                 </div>
+                <div className="asset-button" title="Clear all assets" onClick={this.onDeleteButtonClick}>
+                    <i className="icon delete"></i>
+                </div>
                 <div className="asset-button" title="Import assets" onClick={this.onImportButtonClick}>
                     <i className="icon upload"></i>
                 </div>
@@ -329,7 +362,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         selected={i === selected}
                         onClick={this.onAssetClick(i)}
                         onRename={this.onAssetRename(i)}
-                        onDelete={this.onDeleteButtonClick} />
+                        onDelete={this.onAssetDelete} />
                 }) }
             </div>
         </div>
