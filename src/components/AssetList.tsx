@@ -33,10 +33,12 @@ const DEFAULT_JRES = {
 
 const STORAGE_KEY = "SPRITE_DATA"
 const SAVE_INTERVAL = 1500; // autosave every 1s
+const PROJECT_NAME = "spritePack"
 
 class AssetList extends React.Component<AssetListProps, AssetListState> {
     private _items: AssetInfo[];
-    private _inputRef!: HTMLInputElement;
+    private _importInputRef!: HTMLInputElement;
+    private _exportInputRef!: HTMLInputElement;
     private _dragInit: boolean = false;
 
     constructor(props: AssetListProps) {
@@ -250,7 +252,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                 options: [{
                         text: "Import",
                         onClick: () => {
-                            this.importAssets(this._inputRef.value);
+                            this.importAssets(this._importInputRef.value);
                             this.hideAlert();
                         }
                     }]
@@ -280,7 +282,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         onClick: () => {
                             // download as MKCD
                             this.hideAlert();
-                            downloadProjectAsync("project", this.state.items);
+                            downloadProjectAsync(this._exportInputRef.value || PROJECT_NAME, this.state.items);
                         }
                     },
                     {
@@ -288,7 +290,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         onClick: () => {
                             // download as TS
                             this.hideAlert();
-                            downloadTypeScriptAsync("project", this.state.items);
+                            downloadTypeScriptAsync(this._exportInputRef.value || PROJECT_NAME, this.state.items);
                         }
                     }]
             }
@@ -301,8 +303,12 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     /* REF HANDLING */
 
-    handleInputRef = (el: HTMLInputElement) => {
-        this._inputRef = el;
+    handleImportInputRef = (el: HTMLInputElement) => {
+        this._importInputRef = el;
+    }
+
+    handleExportInputRef = (el: HTMLInputElement) => {
+        this._exportInputRef = el;
     }
 
     handleDropRef = (el: HTMLInputElement) => {
@@ -337,7 +343,10 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                     <div className={`asset-drop ${dragging ? "dragging" : ""}`} ref={this.handleDropRef} onDragEnter={this.onImportDragEnter} onDragLeave={this.onImportDragLeave}>
                         Drop PNG files here to import.
                     </div>
-                    <input ref={this.handleInputRef} placeholder="https://makecode.com/_r8fboJQTDPtH or https://arcade.makeode.com/62736-71128-62577-28722" />
+                    <input ref={this.handleImportInputRef} placeholder="https://makecode.com/_r8fboJQTDPtH or https://arcade.makeode.com/62736-71128-62577-28722" />
+                </div>}
+                {alert.type === "export" && <div className="asset-export">
+                    <input ref={this.handleExportInputRef} placeholder="Enter a name for your project..." />
                 </div>}
             </Alert>}
             <div className="asset-list-buttons">

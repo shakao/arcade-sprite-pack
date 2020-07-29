@@ -39,7 +39,8 @@
     transition: 1s ease-in-out;
 }
 
-.asset-import > input {
+.asset-import > input,
+.asset-export > input {
     box-sizing: border-box;
     width: 100%;
     padding: 0.5rem;
