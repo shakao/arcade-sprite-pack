@@ -1,8 +1,13 @@
 import React from 'react';
+import { Alert, AlertProps } from './Alert';
 import { Asset, AssetInfo } from './Asset';
 import { JRESImage, getJRESImageFromDataString } from '../images'
 import { arcadePalette, fetchMakeCodeScriptAsync } from '../share';
 import '../styles/AssetList.css';
+
+interface AlertInfo extends AlertProps {
+    type: "delete" | "import" | "warning" | "export";
+}
 
 interface AssetListProps {
     postMessage: (msg: any) => void;
@@ -12,6 +17,7 @@ interface AssetListState {
     items: AssetInfo[];
     selected: number;
     saving?: number;
+    alert?: AlertInfo;
 }
 
 const DEFAULT_NAME = "mySprite";
@@ -22,12 +28,19 @@ const DEFAULT_JRES = {
     height: 16,
 }
 
+const STORAGE_KEY = "SPRITE_DATA"
+
 class AssetList extends React.Component<AssetListProps, AssetListState> {
     private _items: AssetInfo[];
+    private _inputRef!: HTMLInputElement;
 
     constructor(props: AssetListProps) {
         super(props);
-        this._items =  [{ name: DEFAULT_NAME, jres: { ...DEFAULT_JRES } }];
+
+        const storedJson = window.localStorage.getItem(STORAGE_KEY);
+        const storedItems = storedJson && JSON.parse(storedJson) as AssetInfo[];
+        this._items = storedItems || [{ name: DEFAULT_NAME, jres: { ...DEFAULT_JRES } }];
+
         this.state = {
             items: this._items,
             selected: 0
@@ -36,33 +49,30 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     componentDidMount() {
         window.addEventListener("message", this.handleMessage);
-
-        // FOR TESTING! just loading in a script to make sure all the data parsing is correct
-        fetchMakeCodeScriptAsync("https://arcade.makecode.com/62736-71028-62577-28752").then((res: {projectImages: JRESImage[]}) => {
-            this._items = [];
-            res.projectImages.forEach((el: JRESImage) => {
-                this._items.push({ name: el.qualifiedName || this.getValidAssetName(DEFAULT_NAME), jres: el })
-            } )
-            this.setState({items: this._items})
-        })
+        this.loadJres(this._items[this.state.selected]);
     }
 
     componentWillUnmount() {
         window.removeEventListener("message", this.handleMessage);
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this._items));
     }
 
     componentDidUpdate(prevProps: AssetListProps, prevState: AssetListState) {
         if (this.state.saving !== undefined && prevState.saving === undefined) {
             this.getJres();
         }
-        if (this.state.selected !== prevState.selected) {
+        if (this.state.selected !== prevState.selected || this.state.selected === 0) {
             this.loadJres(this._items[this.state.selected]);
         }
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this._items));
     }
 
     handleMessage = (msg: any) => {
         const data = msg.data;
         switch (data.type) {
+            case "ready":
+                this.loadJres(this._items[this.state.selected]);
+                break;
             case "update":
                 const jresImage = getJRESImageFromDataString(data.message, arcadePalette);
                 if (this.state.saving !== undefined) {
@@ -88,7 +98,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     getJres = () => {
-        this.props.postMessage({ type: "update" })
+        this.props.postMessage({ type: "update" });
     }
 
     /** ASSET HANDLING */
@@ -98,7 +108,10 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
             name: this.getValidAssetName(name || DEFAULT_NAME),
             jres: { ...DEFAULT_JRES }
         })
-        this.setState({ items: this._items })
+        this.setState({
+            items: this._items,
+            saving: this._items.length - 1
+         });
     }
 
     deleteAsset(index: number) {
@@ -109,12 +122,29 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
          })
     }
 
+    renameAsset(index: number, newName: string) {
+        if (this._items[index].name !== newName) {
+            this._items[index].name = this.getValidAssetName(newName);
+            this.setState({ items: this._items });
+        }
+    }
+
+    importAssets(url: string, replace?: boolean) {
+        fetchMakeCodeScriptAsync(url).then((res: {projectImages: JRESImage[]}) => {
+            if (replace) this._items = [];
+            res.projectImages.forEach((el: JRESImage) => {
+                this._items.push({ name: el.qualifiedName || this.getValidAssetName(DEFAULT_NAME), jres: el })
+            } )
+            this.setState({items: this._items})
+        })
+    }
+
     getAssetIndex(name: string): number {
-        return this._items.findIndex((el) => el.name === name);
+        return this._items.findIndex((el) => el.name.toLowerCase() === name.toLowerCase());
     }
 
     getValidAssetName(name: string): string {
-        name = name.replace(/^[\s\xa0]+|[\s\xa0]+$/g, '');
+        name = name.replace(/[^a-zA-Z0-9]/g, '');
         while (this.getAssetIndex(name) >= 0) {
             let r = name.match(/^(.*?)(\d+)$/);
             // increment counter by one
@@ -125,10 +155,14 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     /** ASSET EVENT LISTENERS */
 
-    onAssetClick = (asset: AssetInfo): (e: any) => void => {
+    onAssetClick = (index: number): (e: any) => void => {
         return () => {
-            this.setState({ saving: this.getAssetIndex(asset.name) });
+            this.setState({ saving: index });
         }
+    }
+
+    onAssetRename = (index: number): (name: string) => void => {
+        return (name: string) => { this.renameAsset(index, name) };
     }
 
     onAddButtonClick = () => {
@@ -136,22 +170,103 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     onDeleteButtonClick = () => {
-        this.deleteAsset(this.state.selected);
+        if (this._items.length > 1) {
+            this.setState({
+                alert: {
+                    type: "delete",
+                    icon: "exclamation triangle",
+                    title: "Warning!",
+                    text: "Deleting an image is permanent. You will not be able to undo this action.",
+                    options: [{
+                            text: "Delete",
+                            onClick: () => {
+                                this.deleteAsset(this.state.selected);
+                                this.hideAlert();
+                            }
+                        }]
+                }
+            })
+        } else {
+            this.setState({
+                alert: {
+                    type: "warning",
+                    icon: "ban",
+                    title: "Unable to delete",
+                    text: "You must have at least one image in your project.",
+                }
+            })
+        }
+    }
+
+    onImportButtonClick = () => {
+        this.setState({
+            alert: {
+                type: "import",
+                icon: "upload",
+                title: "Import Sprites",
+                text: "Paste the URL to a shared game from MakeCode Arcade to import sprites from an existing project.",
+                options: [{
+                        text: "Import",
+                        onClick: () => {
+                            this.importAssets(this._inputRef.value);
+                            this.hideAlert();
+                        }
+                    }]
+            }
+        })
+    }
+
+    onExportButtonClick = () => {
+        // ensure we have most updated sprites
+        this.getJres();
+        this.setState({
+            alert: {
+                type: "export",
+                icon: "download",
+                title: "Export Sprite Pack",
+                text: "Export your sprites as an .mckd project to load directly into Arcade, or as a .ts file with your images encoded.",
+                options: [{
+                        text: "Download MKCD",
+                        onClick: () => {
+                            // download as MKCD
+                            this.hideAlert();
+                        }
+                    },
+                    {
+                        text: "Download TS",
+                        onClick: () => {
+                            // download as TS
+                            this.hideAlert();
+                        }
+                    }]
+            }
+        })
+    }
+
+    hideAlert = () => {
+        this.setState({ alert: undefined });
+    }
+
+    handleInputRef = (el: HTMLInputElement) => {
+        this._inputRef = el;
     }
 
     render() {
-        const { items, selected } = this.state;
+        const { items, selected, alert } = this.state;
 
         return <div id="asset-list">
+            {alert && <Alert icon={alert.icon} title={alert.title} text={alert.text} options={alert.options} visible={true} onClose={this.hideAlert}>
+                {alert.type === "import" && <input className="asset-import" ref={this.handleInputRef} placeholder="https://makecode.com/_r8fboJQTDPtH or https://arcade.makeode.com/62736-71128-62577-28722" />}
+            </Alert>}
             <div className="asset-list-buttons">
                 <div className="asset-button" title="Add asset" onClick={this.onAddButtonClick}>
-                    <i className="icon plus"></i>
+                    <i className="icon plus square outline"></i>
                 </div>
-                <div className="asset-button" title="Delete asset" onClick={this.onDeleteButtonClick}>
-                    <i className="icon delete"></i>
+                <div className="asset-button" title="Import assets" onClick={this.onImportButtonClick}>
+                    <i className="icon upload"></i>
                 </div>
-                <div className="asset-button" title="Rename asset">
-                    <i className="icon i cursor"></i>
+                <div className="asset-button" title="Export assets" onClick={this.onExportButtonClick}>
+                    <i className="icon download"></i>
                 </div>
             </div>
             <div>
@@ -160,7 +275,9 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         key={i}
                         info={item}
                         selected={i === selected}
-                        onClick={this.onAssetClick(item)} />
+                        onClick={this.onAssetClick(i)}
+                        onRename={this.onAssetRename(i)}
+                        onDelete={this.onDeleteButtonClick} />
                 }) }
             </div>
         </div>
