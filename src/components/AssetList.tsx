@@ -344,6 +344,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                                     this._items.push({ name: el.qualifiedName || this.getValidAssetName(DEFAULT_NAME), jres: el })
                                 } )
                                 this.setState({items: this._items})
+                                this.hideAlert();
 
                             }
                             catch (e) {
