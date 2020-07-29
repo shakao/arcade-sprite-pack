@@ -12,6 +12,7 @@ interface AssetProps {
     selected: boolean;
     onClick?: (e: any) => void;
     onRename?: (name: string) => void;
+    onDelete?: (e: any) => void;
 }
 
 interface AssetState {
@@ -49,10 +50,13 @@ export class Asset extends React.Component<AssetProps, AssetState> {
     }
 
     render() {
-        const { info, selected, onClick } = this.props;
+        const { info, selected, onClick, onDelete } = this.props;
         const { name, jres } = info;
 
         return <div className={`asset ${selected ? "selected" : ""}`} onClick={onClick}>
+            {selected && <div className="asset-delete" onClick={onDelete}>
+                <i className="icon delete"></i>
+            </div>}
             <div className="asset-img">
                 <img src={jres.previewURI} alt="Preview of asset" />
             </div>
