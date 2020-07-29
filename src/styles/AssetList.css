@@ -4,7 +4,7 @@
     background-color: var(--editing-tools-bg-color);
     width: 7rem;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: overlay;
 }
 
 .asset-list-buttons {
@@ -31,6 +31,8 @@
     margin: 0.75rem 0.75rem 0;
 }
 
+/* BROWSER STUFF */
+
 ::-webkit-input-placeholder {
     font-style: italic;
  }
@@ -43,3 +45,12 @@
  :-ms-input-placeholder {
     font-style: italic;
  }
+
+::-webkit-scrollbar {
+    width: 0.5rem;
+    background-color: rgba(0,0,0,0);
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--sidebar-icon-inactive-color);
+}
