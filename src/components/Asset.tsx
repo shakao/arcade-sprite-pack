@@ -27,7 +27,7 @@ export class Asset extends React.Component<AssetProps, AssetState> {
     }
 
     componentDidMount() {
-        this.renameInput.focus();
+        if (this.renameInput) this.renameInput.focus();
     }
 
     componentDidUpdate(prevProps: AssetProps, prevState: AssetState) {
@@ -60,7 +60,7 @@ export class Asset extends React.Component<AssetProps, AssetState> {
             <div className="asset-img">
                 <img src={jres.previewURI} alt="Preview of asset" />
             </div>
-            {this.state.renaming
+            {this.state.renaming && selected
                 ? <input className="asset-rename" onBlur={this.onBlur} defaultValue={name} ref={this.handleInputRef} />
                 : <div className="asset-title" onDoubleClick={this.onDoubleClick}><span>{name}</span></div>
             }
