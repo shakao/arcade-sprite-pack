@@ -1,10 +1,9 @@
 import { getJRESImageFromDataString, getJRESImageFromImageLiteral, JRESImage } from "./images";
+import { IMAGE_MIME_TYPE } from "./util";
 
 const backendEndpoint = "https://makecode.com/api";
 
-const IMAGE_MIME_TYPE = "image/x-mkcd-f4"
-
-interface JRes {
+export interface JRes {
     id: string; // something like "sounds.bark"
     data: string;
     dataEncoding?: string; // must be "base64" or missing (meaning the same)

@@ -4,6 +4,7 @@ import { Asset, AssetInfo } from './Asset';
 import { JRESImage, getJRESImageFromDataString } from '../images'
 import { arcadePalette, fetchMakeCodeScriptAsync } from '../share';
 import '../styles/AssetList.css';
+import { downloadProjectAsync, downloadTypeScriptAsync } from '../export';
 
 interface AlertInfo extends AlertProps {
     type: "delete" | "import" | "warning" | "export";
@@ -230,6 +231,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         onClick: () => {
                             // download as MKCD
                             this.hideAlert();
+                            downloadProjectAsync("project", this.state.items);
                         }
                     },
                     {
@@ -237,6 +239,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         onClick: () => {
                             // download as TS
                             this.hideAlert();
+                            downloadTypeScriptAsync("project", this.state.items);
                         }
                     }]
             }
