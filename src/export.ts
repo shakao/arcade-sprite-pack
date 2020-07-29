@@ -1,7 +1,8 @@
 import { AssetInfo, Asset } from "./components/Asset";
 import { lzmaCompressAsync } from "./lzma";
 import { JRes } from "./share";
-import { escapeIdentifier, IMAGE_MIME_TYPE, browserDownloadUInt8Array } from "./util";
+import { escapeIdentifier, IMAGE_MIME_TYPE, browserDownloadUInt8Array, browserDownloadText } from "./util";
+import { imgEncodeJRESImage } from "./images";
 
 
 interface PXTHexFile {
@@ -164,3 +165,31 @@ export async function downloadProjectAsync(name: string, assets: AssetInfo[]) {
     }
 }
 
+export async function downloadTypeScriptAsync(name: string, assets: AssetInfo[]) {
+    let assetTS = "";
+
+    let takenNames: {[index: string]: boolean} = {};
+
+    for (const asset of assets) {
+        assetTS += `const ${escapeName(asset.name)} = ${imgEncodeJRESImage(asset.jres)};\n`
+    }
+
+    return browserDownloadText(assetTS, name + ".ts");
+
+    function escapeName(name: string) {
+        const escaped = escapeIdentifier(name);
+
+        if (!takenNames[escaped]) {
+            takenNames[escaped] = true;
+            return escaped;
+        }
+
+        let index = 2;
+        while (takenNames[escaped + index]) {
+            index++;
+        }
+
+        takenNames[escaped + index] = true;
+        return escaped + index;
+    }
+}

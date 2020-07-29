@@ -69,6 +69,49 @@ function getJRESImage(bitmap: Bitmap, palette: string[], data?: string, qname?: 
     }
 }
 
+export function imgEncodeJRESImage(image: JRESImage) {
+    const bitmap = jresDataToBitmap(image.data);
+    return bitmapToImageLiteral(bitmap, "typescript");
+}
+
+
+const hexChars = [".", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
+
+function bitmapToImageLiteral(bitmap: Bitmap, fileType: "typescript" | "python"): string {
+    let res = '';
+    switch (fileType) {
+        case "python":
+            res = "img(\"\"\"";
+            break;
+        default:
+            res = "img`";
+            break;
+    }
+
+    if (bitmap) {
+        for (let r = 0; r < bitmap.height; r++) {
+            res += "\n"
+            for (let c = 0; c < bitmap.width; c++) {
+                res += hexChars[bitmap.get(c, r)] + " ";
+            }
+        }
+    }
+
+    res += "\n";
+
+    switch (fileType) {
+        case "python":
+            res += "\"\"\")";
+            break;
+        default:
+            res += "`";
+            break;
+    }
+
+    return res;
+}
+
+
 /**
  * Encodes the image in the image/mkcd-f4 format (used for the data attribute in jres files)
  * @param image
