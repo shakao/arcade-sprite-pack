@@ -15,10 +15,17 @@ class App extends React.Component {
         }
     }
 
+    onMouseEnter = () => {
+        this.iframe?.contentWindow?.focus();
+    }
+
     render() {
         return (
             <div className="app">
-                <iframe id="editor" title="MakeCode Arcade sprite editor" src="https://arcade.makecode.com/beta--asseteditor" />
+                <iframe id="editor"
+                    onMouseEnter={this.onMouseEnter}
+                    title="MakeCode Arcade sprite editor"
+                    src="https://arcade.makecode.com/beta--asseteditor" />
                 <AssetList postMessage={this.postMessage} />
             </div>
         );
