@@ -54,6 +54,55 @@ const PROJECT_COMMENT = `/*
  * */
 `;
 
+const TEST_SCRIPT = `
+const padding = 10;
+const speed = 50;
+game.onUpdate(function() {
+    for (const sprite of sprites.allOfKind(SpriteKind.Player)) {
+        if (sprite.vx > 0 && sprite.x >= screen.width - padding) {
+            sprite.x = screen.width - padding;
+            sprite.vx = 0;
+            sprite.vy = speed;
+        }
+        else if (sprite.vy > 0 && sprite.y >= screen.height - padding) {
+            sprite.y = screen.height - padding;
+            sprite.vx = -speed;
+            sprite.vy = 0;
+        }
+        else if (sprite.vx < 0 && sprite.x <= padding) {
+            sprite.x = padding;
+            sprite.vx = 0;
+            sprite.vy = -speed;
+        }
+        else if (sprite.vy < 0 && sprite.bottom <= 0) {
+            sprite.destroy();
+        }
+    }
+})
+
+let index = 0;
+game.onUpdateInterval(700, function() {
+    const asset = sprites.create(allImages[index], SpriteKind.Player);
+    asset.x = padding;
+    asset.y = padding;
+    asset.vx = speed;
+    asset.setFlag(SpriteFlag.Ghost, true)
+    index = (index + 1) % allImages.length;
+})
+
+let line1 = sprites.create(img\`0\`, SpriteKind.Food)
+line1.say("PRESS A TO  ")
+
+let line2 = sprites.create(img\`0\`, SpriteKind.Food)
+line2.say("CHANGE COLOR")
+line2.top += 10
+
+let bgColor = 0;
+controller.player1.onButtonEvent(ControllerButton.A, ControllerButtonEvent.Pressed, function() {
+    scene.setBackgroundColor(bgColor);
+    bgColor = (bgColor + 1) % 15
+})`;
+
 const MAIN_BLOCKS = "main.blocks"
 const ASSET_TS = "assets.ts";
 const ASSET_JRES = "assets.jres"
@@ -63,7 +112,7 @@ const PXT_JSON = "pxt.json";
 const README_MD = "README.md";
 
 
-function createProjectBlobAsync(name: string, assetTS: string, assetJRES: string) {
+function createProjectBlobAsync(name: string, assetTS: string, assetJRES: string, testTS: string) {
     const config = JSON.stringify({
         "name": name,
         "dependencies": {
@@ -85,6 +134,7 @@ function createProjectBlobAsync(name: string, assetTS: string, assetJRES: string
     const files: {[index: string]: string} = {};
     files[PXT_JSON] = config;
     files[MAIN_TS] = PROJECT_COMMENT;
+    files[TEST_TS] = testTS;
     files[ASSET_TS] = assetTS;
     files[ASSET_JRES] = assetJRES;
     files[README_MD] = ""
@@ -106,11 +156,12 @@ function createProjectBlobAsync(name: string, assetTS: string, assetJRES: string
 
 export async function downloadProjectAsync(name: string, assets: AssetInfo[]) {
     let assetTS = "";
+
     const assetJRES: {[index: string]: JRes | string} = {};
+    const takenNames: {[index: string]: boolean} = {};
 
     const projectNamespace = escapeIdentifier(name) + "Sprites";
-
-    let takenNames: {[index: string]: boolean} = {};
+    const qualifiedNames: string[] = [];
 
 
     // @ts-ignore
@@ -137,12 +188,13 @@ export async function downloadProjectAsync(name: string, assets: AssetInfo[]) {
         }
 
         assetTS += `    export const ${identifier} = image.ofBuffer(hex\`\`);\n`
+        qualifiedNames.push(projectNamespace + "." + identifier);
     }
 
     assetTS = `namespace ${projectNamespace} {\n${assetTS}\n}\n`;
 
-
-    const project = await createProjectBlobAsync(name, assetTS, JSON.stringify(assetJRES));
+    const testTS = `const allImages = [${qualifiedNames.join(",")}]\n${TEST_SCRIPT}`;
+    const project = await createProjectBlobAsync(name, assetTS, JSON.stringify(assetJRES), testTS);
     return browserDownloadUInt8Array(project, name + ".mkcd");
 
 
