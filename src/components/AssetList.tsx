@@ -2,10 +2,11 @@ import React from 'react';
 import { Alert, AlertProps } from './Alert';
 import { Asset, AssetInfo } from './Asset';
 import { JRESImage, getJRESImageFromDataString, getJRESImageFromUint8Array } from '../images'
-import { arcadePalette, fetchMakeCodeScriptAsync } from '../share';
+import { arcadePalette, fetchMakeCodeScriptAsync, grabImagesFromProject } from '../share';
 import { setupDragAndDrop, fileReadAsBufferAsync } from '../dragAndDrop';
 import '../styles/AssetList.css';
 import { downloadProjectAsync, downloadTypeScriptAsync } from '../export';
+import { lzmaDecompressAsync } from '../lzma';
 
 interface AlertInfo extends AlertProps {
     type: "delete" | "import" | "warning" | "export";
@@ -326,6 +327,27 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                             if (jres) {
                                 this.addAsset(name, jres);
                                 this.hideAlert();
+                            }
+                        }
+                    }
+                    else if (ext.toLowerCase() === ".mkcd") {
+                        const buf = await fileReadAsBufferAsync(f);
+                        if (buf) {
+                            const text = await lzmaDecompressAsync(buf);
+                            try {
+                                const project = JSON.parse(text);
+                                const files = JSON.parse(project.source);
+
+                                const projectImages = grabImagesFromProject(files);
+
+                                projectImages.forEach((el: JRESImage) => {
+                                    this._items.push({ name: el.qualifiedName || this.getValidAssetName(DEFAULT_NAME), jres: el })
+                                } )
+                                this.setState({items: this._items})
+
+                            }
+                            catch (e) {
+
                             }
                         }
                     }
