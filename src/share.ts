@@ -122,6 +122,18 @@ export async function fetchMakeCodeScriptAsync(url: string) {
         }
     }
 
+    const projectImages = grabImagesFromProject(filesystem);
+
+    return {
+        meta,
+        files: filesystem,
+        projectImages: projectImages,
+        customPalette: paletteIsCustom ? palette : undefined
+    };
+}
+
+
+export function grabImagesFromProject(filesystem: {[index: string]: string}, palette = arcadePalette) {
     // Don't bother checking python and blocks files, they should all get converted to a matching ts
     // file that will also contain all image literals
     const typescriptFiles = Object.keys(filesystem).filter(filename =>
@@ -151,12 +163,7 @@ export async function fetchMakeCodeScriptAsync(url: string) {
         }
     }
 
-    return {
-        meta,
-        files: filesystem,
-        projectImages: Object.keys(seenImages).map(data => seenImages[data]),
-        customPalette: paletteIsCustom ? palette : undefined
-    };
+    return Object.keys(seenImages).map(data => seenImages[data]);
 }
 
 function grabImagesFromJRES(jresText: string, filename: string, palette = arcadePalette): JRESImage[] {
