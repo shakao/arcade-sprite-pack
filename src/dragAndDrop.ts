@@ -28,7 +28,7 @@ export function setupDragAndDrop(r: HTMLElement, filter: (file: File) => boolean
             let types = e.dataTransfer.types;
             let found = false;
             for (let i = 0; i < types.length; ++i)
-                if (types[i] == "Files")
+                if (types[i] === "Files")
                     found = true;
             if (found) {
                 if (e.preventDefault) e.preventDefault(); // Necessary. Allows us to drop.

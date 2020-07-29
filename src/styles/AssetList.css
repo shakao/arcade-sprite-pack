@@ -24,12 +24,27 @@
     cursor: pointer;
 }
 
-.asset-import {
-    box-sizing: border-box;
-    width: calc(100% - 1.5rem);
-    padding: 0.5rem;
-    margin: 0.75rem 0.75rem 0;
+.asset-drop {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px dashed var(--sidebar-icon-inactive-color);
+    border-radius: 5px;
+    margin-bottom: 0.75rem;
+    height: 4rem;
 }
+
+.asset-drop.dragging {
+    height: 8rem;
+    transition: 1s ease-in-out;
+}
+
+.asset-import > input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.5rem;
+}
+
 
 /* BROWSER STUFF */
 

@@ -45,6 +45,16 @@ async function loadImageAsync(uri: string): Promise<HTMLImageElement> {
     })
 }
 
+export async function getJRESImageFromUint8Array(buf: Uint8Array, palette: string[]): Promise<JRESImage | null> {
+    const encoded = btoa(uint8ArrayToString(buf));
+    const imageInfo = await getImageFromURIAsync("data:image/png;base64," + encoded);
+    if (imageInfo) {
+        const imageLit = imgEncodeImage(imageInfo, palette);
+        return await getJRESImageFromImageLiteral(imageLit, palette);
+    }
+    return null;
+}
+
 export function getJRESImageFromDataString(data: string, palette: string[], qname?: string, tilemapTile?: boolean, sourceFile?: string): JRESImage {
     const bitmap = jresDataToBitmap(data);
 

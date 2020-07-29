@@ -1,8 +1,9 @@
 import React from 'react';
 import { Alert, AlertProps } from './Alert';
 import { Asset, AssetInfo } from './Asset';
-import { JRESImage, getJRESImageFromDataString } from '../images'
+import { JRESImage, getJRESImageFromDataString, getJRESImageFromUint8Array } from '../images'
 import { arcadePalette, fetchMakeCodeScriptAsync } from '../share';
+import { setupDragAndDrop, fileReadAsBufferAsync } from '../dragAndDrop';
 import '../styles/AssetList.css';
 import { downloadProjectAsync, downloadTypeScriptAsync } from '../export';
 
@@ -18,6 +19,7 @@ interface AssetListState {
     items: AssetInfo[];
     selected: number;
     saving?: number;
+    dragging?: boolean;
     alert?: AlertInfo;
 }
 
@@ -34,6 +36,7 @@ const STORAGE_KEY = "SPRITE_DATA"
 class AssetList extends React.Component<AssetListProps, AssetListState> {
     private _items: AssetInfo[];
     private _inputRef!: HTMLInputElement;
+    private _dragInit: boolean = false;
 
     constructor(props: AssetListProps) {
         super(props);
@@ -104,10 +107,10 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     /** ASSET HANDLING */
 
-    addAsset(name?: string) {
+    addAsset(name?: string, jres?: JRESImage) {
         this._items.push({
             name: this.getValidAssetName(name || DEFAULT_NAME),
-            jres: { ...DEFAULT_JRES }
+            jres: jres || { ...DEFAULT_JRES }
         })
         this.setState({
             items: this._items,
@@ -205,7 +208,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                 type: "import",
                 icon: "upload",
                 title: "Import Sprites",
-                text: "Paste the URL to a shared game from MakeCode Arcade to import sprites from an existing project.",
+                text: "Paste a URL from MakeCode Arcade or drag and drop PNG files to import existing sprites.",
                 options: [{
                         text: "Import",
                         onClick: () => {
@@ -215,6 +218,14 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                     }]
             }
         })
+    }
+
+    onImportDragEnter = (e: any) => {
+        this.setState({ dragging: true });
+    }
+
+    onImportDragLeave = (e: any) => {
+        this.setState({ dragging: false });
     }
 
     onExportButtonClick = () => {
@@ -250,16 +261,46 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         this.setState({ alert: undefined });
     }
 
+    /* REF HANDLING */
+
     handleInputRef = (el: HTMLInputElement) => {
         this._inputRef = el;
     }
 
+    handleDropRef = (el: HTMLInputElement) => {
+        if (!this._dragInit) {
+            this._dragInit = true;
+            setupDragAndDrop(document.body, f => true, async files => {
+                for (const f of files) {
+                    const idx = f.name.lastIndexOf(".");
+                    const ext = f.name.substr(idx);
+                    const name = f.name.slice(0, idx);
+                    if (ext.toLowerCase() === ".png") {
+                        const buf = await fileReadAsBufferAsync(f);
+                        if (buf) {
+                            const jres = await getJRESImageFromUint8Array(buf, arcadePalette);
+                            if (jres) {
+                                this.addAsset(name, jres);
+                                this.hideAlert();
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
     render() {
-        const { items, selected, alert } = this.state;
+        const { items, selected, dragging, alert } = this.state;
 
         return <div id="asset-list">
             {alert && <Alert icon={alert.icon} title={alert.title} text={alert.text} options={alert.options} visible={true} onClose={this.hideAlert}>
-                {alert.type === "import" && <input className="asset-import" ref={this.handleInputRef} placeholder="https://makecode.com/_r8fboJQTDPtH or https://arcade.makeode.com/62736-71128-62577-28722" />}
+                {alert.type === "import" && <div className="asset-import">
+                    <div className={`asset-drop ${dragging ? "dragging" : ""}`} ref={this.handleDropRef} onDragEnter={this.onImportDragEnter} onDragLeave={this.onImportDragLeave}>
+                        Drop PNG files here to import.
+                    </div>
+                    <input ref={this.handleInputRef} placeholder="https://makecode.com/_r8fboJQTDPtH or https://arcade.makeode.com/62736-71128-62577-28722" />
+                </div>}
             </Alert>}
             <div className="asset-list-buttons">
                 <div className="asset-button" title="Add asset" onClick={this.onAddButtonClick}>
