@@ -28,13 +28,19 @@ const DEFAULT_JRES = {
     height: 16,
 }
 
+const STORAGE_KEY = "SPRITE_DATA"
+
 class AssetList extends React.Component<AssetListProps, AssetListState> {
     private _items: AssetInfo[];
     private _inputRef!: HTMLInputElement;
 
     constructor(props: AssetListProps) {
         super(props);
-        this._items =  [{ name: DEFAULT_NAME, jres: { ...DEFAULT_JRES } }];
+
+        const storedJson = window.localStorage.getItem(STORAGE_KEY);
+        const storedItems = storedJson && JSON.parse(storedJson) as AssetInfo[];
+        this._items = storedItems || [{ name: DEFAULT_NAME, jres: { ...DEFAULT_JRES } }];
+
         this.state = {
             items: this._items,
             selected: 0
@@ -43,10 +49,12 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     componentDidMount() {
         window.addEventListener("message", this.handleMessage);
+        this.loadJres(this._items[this.state.selected]);
     }
 
     componentWillUnmount() {
         window.removeEventListener("message", this.handleMessage);
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this._items));
     }
 
     componentDidUpdate(prevProps: AssetListProps, prevState: AssetListState) {
@@ -56,11 +64,15 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         if (this.state.selected !== prevState.selected || this.state.selected === 0) {
             this.loadJres(this._items[this.state.selected]);
         }
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this._items));
     }
 
     handleMessage = (msg: any) => {
         const data = msg.data;
         switch (data.type) {
+            case "ready":
+                this.loadJres(this._items[this.state.selected]);
+                break;
             case "update":
                 const jresImage = getJRESImageFromDataString(data.message, arcadePalette);
                 if (this.state.saving !== undefined) {
