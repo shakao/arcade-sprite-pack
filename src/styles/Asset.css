@@ -46,3 +46,18 @@
     background-color: var(--sidebar-header-bg-color);
     color: var(--sidebar-icon-active-color);
 }
+
+.asset-delete {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 0.2rem;
+    border-radius: 5px;
+    opacity: 0.8;
+    background-color: var(--sidebar-header-bg-color);
+    cursor: pointer;
+}
+
+.asset-delete > i {
+    margin: 0.1rem;
+}
