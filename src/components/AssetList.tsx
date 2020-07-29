@@ -32,6 +32,7 @@ const DEFAULT_JRES = {
 }
 
 const STORAGE_KEY = "SPRITE_DATA"
+const SAVE_INTERVAL = 1500; // autosave every 1s
 
 class AssetList extends React.Component<AssetListProps, AssetListState> {
     private _items: AssetInfo[];
@@ -54,6 +55,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     componentDidMount() {
         window.addEventListener("message", this.handleMessage);
         this.loadJres(this._items[this.state.selected]);
+
+        setTimeout(this.autosaveJres, SAVE_INTERVAL);
     }
 
     componentWillUnmount() {
@@ -95,6 +98,11 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
             default:
                 break;
         }
+    }
+
+    autosaveJres = () => {
+        if (!this.state.saving) this.getJres();
+        setTimeout(this.autosaveJres, SAVE_INTERVAL);
     }
 
     loadJres = (asset: AssetInfo) => {
