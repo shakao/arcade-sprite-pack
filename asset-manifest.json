@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "/arcade-sprite-pack/static/css/main.026522b2.chunk.css",
-    "main.js": "/arcade-sprite-pack/static/js/main.b24828a3.chunk.js",
-    "main.js.map": "/arcade-sprite-pack/static/js/main.b24828a3.chunk.js.map",
+    "main.js": "/arcade-sprite-pack/static/js/main.79be8ac7.chunk.js",
+    "main.js.map": "/arcade-sprite-pack/static/js/main.79be8ac7.chunk.js.map",
     "runtime-main.js": "/arcade-sprite-pack/static/js/runtime-main.d3428316.js",
     "runtime-main.js.map": "/arcade-sprite-pack/static/js/runtime-main.d3428316.js.map",
     "static/js/2.5350be6f.chunk.js": "/arcade-sprite-pack/static/js/2.5350be6f.chunk.js",
     "static/js/2.5350be6f.chunk.js.map": "/arcade-sprite-pack/static/js/2.5350be6f.chunk.js.map",
     "index.html": "/arcade-sprite-pack/index.html",
-    "precache-manifest.b02c044929939925276a4dd9ee02bcd3.js": "/arcade-sprite-pack/precache-manifest.b02c044929939925276a4dd9ee02bcd3.js",
+    "precache-manifest.a3e29801cf5f8ebd86c7ba50d5c1c35b.js": "/arcade-sprite-pack/precache-manifest.a3e29801cf5f8ebd86c7ba50d5c1c35b.js",
     "service-worker.js": "/arcade-sprite-pack/service-worker.js",
     "static/css/main.026522b2.chunk.css.map": "/arcade-sprite-pack/static/css/main.026522b2.chunk.css.map",
     "static/js/2.5350be6f.chunk.js.LICENSE.txt": "/arcade-sprite-pack/static/js/2.5350be6f.chunk.js.LICENSE.txt"
@@ -17,6 +17,6 @@
     "static/js/runtime-main.d3428316.js",
     "static/js/2.5350be6f.chunk.js",
     "static/css/main.026522b2.chunk.css",
-    "static/js/main.b24828a3.chunk.js"
+    "static/js/main.79be8ac7.chunk.js"
   ]
 }
