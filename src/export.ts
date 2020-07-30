@@ -116,7 +116,7 @@ function createProjectBlobAsync(name: string, assetTS: string, assetJRES: string
     const config = JSON.stringify({
         "name": name,
         "dependencies": {
-            "device": "file:../device" // required for arcade
+            "device": "*" // required for arcade
         },
         "description": "An asset pack for MakeCode Arcade",
         "files": [
