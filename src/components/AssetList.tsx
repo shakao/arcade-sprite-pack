@@ -33,7 +33,7 @@ const DEFAULT_JRES = {
 }
 
 const STORAGE_KEY = "SPRITE_DATA"
-const SAVE_INTERVAL = 1500; // autosave every 1s
+const SAVE_INTERVAL = 2000; // autosave every 2s
 const PROJECT_NAME = "spritePack"
 
 class AssetList extends React.Component<AssetListProps, AssetListState> {
@@ -46,8 +46,12 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         super(props);
 
         const storedJson = window.localStorage.getItem(STORAGE_KEY);
-        const storedItems = storedJson && JSON.parse(storedJson) as AssetInfo[];
-        this._items = storedItems || [{ name: DEFAULT_NAME, jres: { ...DEFAULT_JRES } }];
+        try {
+            const storedItems = storedJson && JSON.parse(storedJson) as AssetInfo[];
+            this._items = storedItems || [{ name: DEFAULT_NAME, jres: { ...DEFAULT_JRES } }];
+        } catch {
+            this._items = [{ name: DEFAULT_NAME, jres: { ...DEFAULT_JRES } }];
+        }
 
         this.state = {
             items: this._items,
@@ -59,6 +63,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         window.addEventListener("message", this.handleMessage);
         this.loadJres(this._items[this.state.selected]);
 
+        // TODO: intermittent bug where floating layers are not registered
+        // in the "update" probably to do with pxt-side handling of getJres
         setTimeout(this.autosaveJres, SAVE_INTERVAL);
     }
 
@@ -71,7 +77,9 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         if (this.state.saving !== undefined && prevState.saving === undefined) {
             this.getJres();
         }
-        if (this.state.selected !== prevState.selected || this.state.selected === 0) {
+
+        if (this.state.selected !== prevState.selected ||
+            this.state.items.length !== prevState.items.length) {
             this.loadJres(this._items[this.state.selected]);
         }
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this._items));
@@ -130,7 +138,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     deleteAsset(index: number) {
-        this._items.splice(index, 1);
+        this._items = this._items.filter((el, i) => i !== index);
         this.setState({
             items: this._items,
             selected: Math.max(index - 1, 0)
@@ -145,11 +153,10 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     clearAssets() {
-        this._items.length = 0;
-        this._items.push({
-            name: this.getValidAssetName(DEFAULT_NAME),
+        this._items = [{
+            name: DEFAULT_NAME,
             jres: { ...DEFAULT_JRES }
-        })
+        }];
         this.setState({ items: this._items, selected: 0 });
     }
 
