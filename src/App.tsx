@@ -25,7 +25,7 @@ class App extends React.Component {
                 <iframe id="editor"
                     onMouseEnter={this.onMouseEnter}
                     title="MakeCode Arcade sprite editor"
-                    src="https://arcade.makecode.com/beta--asseteditor" />
+                    src="https://arcade.makecode.com/--asseteditor" />
                 <AssetList postMessage={this.postMessage} />
             </div>
         );
