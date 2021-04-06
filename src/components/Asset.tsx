@@ -54,16 +54,9 @@ export class Asset extends React.Component<AssetProps, AssetState> {
         const { name, jres } = info;
 
         return <div className={`asset ${selected ? "selected" : ""}`} onClick={onClick}>
-            {selected && <div className="asset-delete" onClick={onDelete}>
-                <i className="icon delete"></i>
-            </div>}
             <div className="asset-img">
                 <img src={jres.previewURI} alt="Preview of asset" />
             </div>
-            {this.state.renaming && selected
-                ? <input className="asset-rename" onBlur={this.onBlur} defaultValue={name} ref={this.handleInputRef} />
-                : <div className="asset-title" onDoubleClick={this.onDoubleClick}><span>{name}</span></div>
-            }
         </div>
     }
 }

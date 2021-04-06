@@ -1,9 +1,8 @@
 .asset {
     border: 1px solid var(--sidebar-icon-inactive-color);
     color: var(--sidebar-icon-inactive-color);
-    border-radius: .25rem;
-    width: 6rem;
-    height: 6rem;
+    width: 20rem;
+    height: 20rem;
     margin: .4rem;
     overflow: hidden;
     position: relative;

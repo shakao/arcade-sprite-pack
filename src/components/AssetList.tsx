@@ -12,6 +12,11 @@ interface AlertInfo extends AlertProps {
     type: "delete" | "import" | "warning" | "export";
 }
 
+interface FileInfo {
+    name: string;
+    content: string;
+}
+
 interface AssetListProps {
     postMessage: (msg: any) => void;
 }
@@ -22,6 +27,8 @@ interface AssetListState {
     saving?: number;
     dragging?: boolean;
     alert?: AlertInfo;
+    textItems?: string[];
+    files?: FileInfo[];
 }
 
 const DEFAULT_NAME = "mySprite";
@@ -44,14 +51,24 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     constructor(props: AssetListProps) {
         super(props);
-
-        const storedJson = window.localStorage.getItem(STORAGE_KEY);
-        const storedItems = storedJson && JSON.parse(storedJson) as AssetInfo[];
-        this._items = storedItems || [{ name: DEFAULT_NAME, jres: { ...DEFAULT_JRES } }];
+        this._items = [{ name: DEFAULT_NAME, jres: { ...DEFAULT_JRES } }];
 
         this.state = {
             items: this._items,
-            selected: 0
+            selected: 0,
+            alert: {
+                type: "import",
+                icon: "upload",
+                title: "Import Sprites",
+                text: "Paste a URL from MakeCode Arcade or drag and drop PNG files to import a project.",
+                options: [{
+                        text: "Import",
+                        onClick: () => {
+                            this.importAssets(this._importInputRef.value);
+                            this.hideAlert();
+                        }
+                    }]
+            }
         };
     }
 
@@ -154,12 +171,39 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     importAssets(url: string, replace?: boolean) {
-        fetchMakeCodeScriptAsync(url).then((res: {projectImages: JRESImage[]}) => {
+        fetchMakeCodeScriptAsync(url).then(res => {
             if (replace) this._items = [];
             res.projectImages.forEach((el: JRESImage) => {
                 this._items.push({ name: el.qualifiedName || this.getValidAssetName(DEFAULT_NAME), jres: el })
             } )
-            this.setState({items: this._items})
+
+            let files: FileInfo[] = [];
+            let ignoredFiles = ["images.g.jres", "images.g.ts", "main.blocks", "tilemap.g.jres", "tilemap.g.ts"]
+
+            for (const file of Object.keys(res.files)) {
+                if (ignoredFiles.indexOf(file) === -1) {
+                    files.push({
+                        name: file,
+                        content: res.files[file]
+                    });
+                }
+            }
+
+            files = files.filter(f => !!f.content.trim())
+
+            const priorities = [".md", ".json", ".py", ".ts"];
+
+            files.sort((a, b) => {
+                const aPriority = priorities.indexOf(a.name.substr(a.name.lastIndexOf(".")));
+                const bPriority = priorities.indexOf(b.name.substr(b.name.lastIndexOf(".")));
+                return aPriority - bPriority;
+            })
+
+            this.setState({
+                items: this._items,
+                textItems: res.text,
+                files
+            })
         })
     }
 
@@ -357,7 +401,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     render() {
-        const { items, selected, dragging, alert } = this.state;
+        const { items, selected, dragging, alert, textItems, files } = this.state;
 
         return <div id="asset-list">
             {alert && <Alert icon={alert.icon} title={alert.title} text={alert.text} options={alert.options} visible={true} onClose={this.hideAlert}>
@@ -372,20 +416,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                 </div>}
             </Alert>}
             <div className="asset-list-buttons">
-                <div className="asset-button" title="Add asset" onClick={this.onAddButtonClick}>
-                    <i className="icon plus square outline"></i>
-                </div>
-                <div className="asset-button" title="Clear all assets" onClick={this.onDeleteButtonClick}>
-                    <i className="icon delete"></i>
-                </div>
-                <div className="asset-button" title="Import assets" onClick={this.onImportButtonClick}>
-                    <i className="icon upload"></i>
-                </div>
-                <div className="asset-button" title="Export assets" onClick={this.onExportButtonClick}>
-                    <i className="icon download"></i>
-                </div>
             </div>
-            <div>
+            <div className="asset-images">
                 { items.map((item, i) => {
                     return <Asset
                         key={i}
@@ -396,6 +428,17 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         onDelete={this.onAssetDelete} />
                 }) }
             </div>
+            {textItems && <div className="asset-fields">
+                    {textItems.map((text, i) => <pre key={i} className="asset-field">{text}</pre>)}
+                </div>
+            }
+            {files && <div className="asset-files">
+                    {files.map((file, i) => <div key={i} className="asset-file">
+                        <div className="asset-filename">{file.name}</div>
+                        <pre className="asset-file-content">{file.content}</pre>
+                </div>)}
+                </div>
+            }
         </div>
     }
 }

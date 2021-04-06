@@ -31,7 +31,6 @@ export class Alert extends React.Component<AlertProps, {}> {
                 <div className="alert-title">
                     {icon && <i className={`alert-icon icon ${icon}`}></i>}
                     <span>{title}</span>
-                    <i className="icon delete" onClick={this.props.onClose}></i>
                 </div>
                 <div className="alert-text">{text}</div>
                 {this.props.children && this.props.children}
