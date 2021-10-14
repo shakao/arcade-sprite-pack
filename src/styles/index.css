@@ -27,4 +27,10 @@ code {
   --map-button-bg-color: #3c3c3c;
   --map-button-icon-color: #cccccc;
 
+  --image-tab-color: #ffb900;
+  --animation-tab-color: #0078d4;
+  --tile-tab-color: #3bc442;
+  --tilemap-tab-color: #ff4d4d;
+
+  --darkened-background: rgba(0,0,0,0.2);
 }

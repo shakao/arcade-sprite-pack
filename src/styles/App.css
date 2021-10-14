@@ -4,10 +4,37 @@ body, html, #root {
 
 .app {
   display: flex;
+  flex-direction: column;
   height: 100%;
+
+  background-color: var(--active-tab-color);
+}
+
+.app.image-active {
+  --active-tab-color: var(--image-tab-color);
+}
+
+.app.animation-active {
+  --active-tab-color: var(--animation-tab-color);
+}
+
+.app.tile-active {
+  --active-tab-color: var(--tile-tab-color);
+}
+
+.app.tilemap-active {
+  --active-tab-color: var(--tilemap-tab-color);
+}
+
+.asset-editor-area {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: row;
+  padding: 0.25rem;
 }
 
 #editor {
   flex: 1;
   border: 0;
+  border-radius: 0.25rem;
 }

@@ -1,0 +1,14 @@
+button.asset-details-button {
+    cursor: pointer;
+    line-height: 1.5rem;
+    font-size: 1.5rem;
+    border: 3px solid black;
+    text-align: center;
+    width: 100%;
+    background: none;
+    margin-bottom: 0.5rem;
+}
+
+button.asset-details-button:hover {
+    background: var(--darkened-background);
+}

@@ -1,0 +1,38 @@
+.asset-details {
+    margin: 0.25rem;
+}
+
+.asset-details-header {
+    line-height: 2rem;
+    font-size: 2rem;
+    /* border-bottom: 3px solid black; */
+    padding: 0.25rem;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.asset-details-key-value {
+    display: flex;
+    flex-direction: row;
+    line-height: 2rem;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.asset-details-key {
+    padding-right: 0.5rem;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.asset-details-value {
+    flex-grow: 1;
+}
+
+.asset-details-input {
+    flex-grow: 1;
+    background: none;
+    border: none;
+    border-bottom: 3px solid black;
+    font-size: 1.5rem;
+}

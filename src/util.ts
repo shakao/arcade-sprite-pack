@@ -2,6 +2,8 @@
  * This file contains util functions taken directly from pxt-core and lightly modified
  */
 
+import { AssetType, getProjectPalette } from "./project";
+
 export const IMAGE_MIME_TYPE = "image/x-mkcd-f4"
 
 export function browserDownloadUInt8Array(buf: Uint8Array, name: string, contentType: string = "application/octet-stream", userContextWindow?: Window, onError?: (err: any) => void): string {
@@ -150,4 +152,255 @@ function lookupInUnicodeMap(code: number, map: number[]): boolean {
     }
 
     return false;
+}
+class ImageConverter {
+    private palette: Uint8Array | null = null
+    private start: number = 0
+
+    logTime() {
+        if (this.start) {
+            let d = Date.now() - this.start
+            pxt.debug("Icon creation: " + d + "ms")
+        }
+    }
+
+    convert(jresURL: string): any {
+        if (!this.start)
+            this.start = Date.now()
+
+        let data = atob(jresURL.slice(jresURL.indexOf(",") + 1))
+        let magic = data.charCodeAt(0);
+        let w = data.charCodeAt(1);
+        let h = data.charCodeAt(2);
+
+        if (magic === 0x87) {
+            magic = 0xe0 | data.charCodeAt(1);
+            w = data.charCodeAt(2) | (data.charCodeAt(3) << 8);
+            h = data.charCodeAt(4) | (data.charCodeAt(5) << 8);
+            data = data.slice(4);
+        }
+
+        if (magic != 0xe1 && magic != 0xe4)
+            return null
+
+        function htmlColorToBytes(hexColor: string) {
+            const v = parseInt(hexColor.replace(/#/, ""), 16)
+            return [(v >> 0) & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, 0xff]
+        }
+
+
+        if (!this.palette) {
+            let arrs = getProjectPalette().map(htmlColorToBytes);
+
+            // Set the alpha for transparency at index 0
+            arrs[0][3] = 0;
+            this.palette = new Uint8Array(arrs.length * 4)
+            for (let i = 0; i < arrs.length; ++i) {
+                this.palette[i * 4 + 0] = arrs[i][0]
+                this.palette[i * 4 + 1] = arrs[i][1]
+                this.palette[i * 4 + 2] = arrs[i][2]
+                this.palette[i * 4 + 3] = arrs[i][3]
+            }
+        }
+
+        if (magic == 0xe1) {
+            return this.genMonochrome(data, w, h);
+        }
+
+        const scaleFactor = ((pxt.BrowserUtils.isEdge() || pxt.BrowserUtils.isIE()) && w < 100 && h < 100) ? 3 : 1;
+        return this.genColor(data, w, h, scaleFactor);
+    }
+
+    genMonochrome(data: string, w: number, h: number) {
+        let outByteW = (w + 3) & ~3
+
+        let bmpHeaderSize = 14 + 40 + this.palette!.length
+        let bmpSize = bmpHeaderSize + outByteW * h
+        let bmp = new Uint8Array(bmpSize)
+
+        bmp[0] = 66
+        bmp[1] = 77
+        pxt.HF2.write32(bmp, 2, bmpSize)
+        pxt.HF2.write32(bmp, 10, bmpHeaderSize)
+        pxt.HF2.write32(bmp, 14, 40) // size of this header
+        pxt.HF2.write32(bmp, 18, w)
+        pxt.HF2.write32(bmp, 22, -h) // not upside down
+        pxt.HF2.write16(bmp, 26, 1) // 1 color plane
+        pxt.HF2.write16(bmp, 28, 8) // 8bpp
+        pxt.HF2.write32(bmp, 38, 2835) // 72dpi
+        pxt.HF2.write32(bmp, 42, 2835)
+        pxt.HF2.write32(bmp, 46, this.palette!.length >> 2)
+
+        bmp.set(this.palette!, 54)
+
+        let inP = 4
+        let outP = bmpHeaderSize
+        let mask = 0x01
+        let v = data.charCodeAt(inP++)
+        for (let x = 0; x < w; ++x) {
+            outP = bmpHeaderSize + x
+            for (let y = 0; y < h; ++y) {
+                bmp[outP] = (v & mask) ? 1 : 0
+                outP += outByteW
+                mask <<= 1
+                if (mask == 0x100) {
+                    mask = 0x01
+                    v = data.charCodeAt(inP++)
+                }
+            }
+        }
+
+        return "data:image/bmp;base64," + btoa(pxt.U.uint8ArrayToString(bmp))
+    }
+
+    genColor(data: string, width: number, height: number, intScale: number) {
+        intScale = Math.max(1, intScale | 0);
+        const w = width * intScale;
+        const h = height * intScale;
+
+        let outByteW = w << 2;
+        let bmpHeaderSize = 138;
+        let bmpSize = bmpHeaderSize + outByteW * h
+        let bmp = new Uint8Array(bmpSize)
+
+        bmp[0] = 66
+        bmp[1] = 77
+        pxt.HF2.write32(bmp, 2, bmpSize)
+        pxt.HF2.write32(bmp, 10, bmpHeaderSize)
+        pxt.HF2.write32(bmp, 14, 124) // size of this header
+        pxt.HF2.write32(bmp, 18, w)
+        pxt.HF2.write32(bmp, 22, -h) // not upside down
+        pxt.HF2.write16(bmp, 26, 1) // 1 color plane
+        pxt.HF2.write16(bmp, 28, 32) // 32bpp
+        pxt.HF2.write16(bmp, 30, 3) // magic?
+        pxt.HF2.write32(bmp, 38, 2835) // 72dpi
+        pxt.HF2.write32(bmp, 42, 2835)
+
+        pxt.HF2.write32(bmp, 54, 0xff0000) // Red bitmask
+        pxt.HF2.write32(bmp, 58, 0xff00) // Green bitmask
+        pxt.HF2.write32(bmp, 62, 0xff) // Blue bitmask
+        pxt.HF2.write32(bmp, 66, 0xff000000) // Alpha bitmask
+
+        // Color space (sRGB)
+        bmp[70] = 0x42; // B
+        bmp[71] = 0x47; // G
+        bmp[72] = 0x52; // R
+        bmp[73] = 0x73; // s
+
+        let inP = 4
+        let outP = bmpHeaderSize
+        let isTransparent = true;
+
+        for (let x = 0; x < w; x++) {
+            let high = false;
+            outP = bmpHeaderSize + (x << 2)
+            let columnStart = inP;
+
+            let v = data.charCodeAt(inP++);
+            let colorStart = high ? (((v >> 4) & 0xf) << 2) : ((v & 0xf) << 2);
+
+            for (let y = 0; y < h; y++) {
+                if (v) isTransparent = false;
+                bmp[outP] = this.palette![colorStart]
+                bmp[outP + 1] = this.palette![colorStart + 1]
+                bmp[outP + 2] = this.palette![colorStart + 2]
+                bmp[outP + 3] = this.palette![colorStart + 3]
+                outP += outByteW
+
+                if (y % intScale === intScale - 1) {
+                    if (high) {
+                        v = data.charCodeAt(inP++);
+                    }
+                    high = !high;
+
+                    colorStart = high ? (((v >> 4) & 0xf) << 2) : ((v & 0xf) << 2);
+                }
+            }
+
+            if (isTransparent) {
+                // If all pixels are completely transparent, browsers won't render the image properly;
+                // set one pixel to be slightly opaque to fix that
+                bmp[bmpHeaderSize + 3] = 1;
+            }
+
+            if (x % intScale === intScale - 1) {
+                if (!(height % 2)) --inP;
+                while (inP & 3) inP++
+            }
+            else {
+                inP = columnStart;
+            }
+        }
+
+        return "data:image/bmp;base64," + btoa(pxt.U.uint8ArrayToString(bmp))
+    }
+}
+
+
+export function generatePreviewURI(asset: pxt.Asset, imgConv = new ImageConverter()) {
+    switch (asset.type) {
+        case AssetType.Image:
+        case AssetType.Tile:
+            asset.previewURI = imgConv.convert("data:image/x-mkcd-f," + (asset as pxt.ProjectImage).jresData);
+            return asset;
+        case AssetType.Tilemap:
+            let tilemap = asset as pxt.ProjectTilemap;
+            asset.previewURI = tilemapToImageURI(tilemap.data, Math.max(tilemap.data.tilemap.width, tilemap.data.tilemap.height), false);
+            return asset;
+        case AssetType.Animation:
+            let anim = asset as pxt.Animation;
+            if (anim.frames?.length <= 0) return null;
+            (anim as any).framePreviewURIs = anim.frames.map(bitmap => imgConv.convert("data:image/x-mkcd-f," + pxt.sprite.base64EncodeBitmap(bitmap)));
+            asset.previewURI = (anim as any).framePreviewURIs[0];
+            return asset;
+    }
+}
+
+export function tilemapToImageURI(data: pxt.sprite.TilemapData, sideLength: number, lightMode: boolean) {
+    const colors = getProjectPalette();
+    const canvas = document.createElement("canvas");
+    canvas.width = sideLength;
+    canvas.height = sideLength;
+
+    // Works well for all of our default sizes, does not work well if the size is not
+    // a multiple of 2 or is greater than 32 (i.e. from the decompiler)
+    const cellSize = Math.min(sideLength / data.tilemap.width, sideLength / data.tilemap.height);
+
+    // Center the image if it isn't square
+    const xOffset = Math.max(Math.floor((sideLength * (1 - (data.tilemap.width / data.tilemap.height))) / 2), 0);
+    const yOffset = Math.max(Math.floor((sideLength * (1 - (data.tilemap.height / data.tilemap.width))) / 2), 0);
+
+    let context: CanvasRenderingContext2D;
+    if (lightMode) {
+        context = canvas.getContext("2d", { alpha: false })!;
+        context.fillStyle = "#dedede";
+        context.fillRect(0, 0, sideLength, sideLength);
+    }
+    else {
+        context = canvas.getContext("2d")!;
+    }
+
+    let tileColors: string[] = [];
+
+    for (let c = 0; c < data.tilemap.width; c++) {
+        for (let r = 0; r < data.tilemap.height; r++) {
+            const tile = data.tilemap.get(c, r);
+
+            if (tile) {
+                if (!tileColors[tile]) {
+                    const tileInfo = data.tileset.tiles[tile];
+                    tileColors[tile] = tileInfo ? pxt.sprite.computeAverageColor(pxt.sprite.Bitmap.fromData(tileInfo.bitmap), colors) : "#dedede";
+                }
+
+                context.fillStyle = tileColors[tile];
+                context.fillRect(xOffset + c * cellSize, yOffset + r * cellSize, cellSize, cellSize);
+            }
+            else if (lightMode) {
+                context.fillStyle = "#dedede";
+                context.fillRect(xOffset + c * cellSize, yOffset + r * cellSize, cellSize, cellSize);
+            }
+        }
+    }
+
+    return canvas.toDataURL();
 }

@@ -1,0 +1,29 @@
+.asset-tab-bar {
+    display: flex;
+    flex-direction: row;
+    background-color: var(--darkened-background);
+    padding-top: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.asset-tab {
+    width: 10rem;
+    text-align: center;
+    height: 2rem;
+    line-height: 2rem;
+}
+
+.asset-tab.selected {
+    background-color: var(--active-tab-color);
+    border-radius: 0.25rem 0.25rem 0 0;
+}
+
+.asset-tab-name {
+    color: white;
+    font-size: 1.5rem;
+}
+
+
+.asset-tab.selected  .asset-tab-name {
+    color: black;
+}

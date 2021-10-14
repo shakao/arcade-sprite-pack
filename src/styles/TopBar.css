@@ -1,0 +1,13 @@
+.asset-top-bar {
+    display: flex;
+    flex-direction: row;
+    background-color: var(--active-tab-color);
+}
+
+.asset-tab-bar-container {
+    flex-grow: 1;
+}
+
+.asset-actions-container {
+    width: 10rem;
+}

@@ -1,0 +1,72 @@
+#asset-list {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--editing-tools-bg-color);
+    width: 7rem;
+    overflow-x: hidden;
+    overflow-y: overlay;
+}
+
+.asset-list-buttons {
+    display: flex;
+    justify-content: space-between;
+    height: 1.7rem;
+    padding: 0.4rem 0.4rem 0;
+    background-color: var(--sidebar-bg-color);
+}
+
+.asset-button {
+    width: 1.2rem;
+    height: 1.2rem;
+    line-height: 1.2rem;
+    color: var(--sidebar-icon-inactive-color);
+    text-align: center;
+    cursor: pointer;
+}
+
+.asset-drop {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px dashed var(--sidebar-icon-inactive-color);
+    border-radius: 5px;
+    margin-bottom: 0.75rem;
+    height: 4rem;
+}
+
+.asset-drop.dragging {
+    height: 8rem;
+    transition: 1s ease-in-out;
+}
+
+.asset-import > input,
+.asset-export > input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.5rem;
+}
+
+
+/* BROWSER STUFF */
+
+::-webkit-input-placeholder {
+    font-style: italic;
+ }
+ :-moz-placeholder {
+    font-style: italic;
+ }
+ ::-moz-placeholder {
+    font-style: italic;
+ }
+ :-ms-input-placeholder {
+    font-style: italic;
+ }
+
+::-webkit-scrollbar {
+    width: 0.5rem;
+    background-color: rgba(0,0,0,0);
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--sidebar-icon-inactive-color);
+}
