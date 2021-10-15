@@ -17526,6 +17526,7 @@ var pxt;
             this.needsRebuild = true;
             this.nextID = 0;
             this.nextInternalID = 0;
+            this.changeListeners = [];
             this.committedState = {
                 revision: 0,
                 tilemaps: new AssetCollection(),
@@ -18067,6 +18068,9 @@ var pxt;
                     break;
             }
         }
+        addProjectChangeListener(listener) {
+            this.changeListeners.push(listener);
+        }
         removeChangeListener(type, listener) {
             switch (type) {
                 case "image" /* Image */:
@@ -18082,6 +18086,9 @@ var pxt;
                     this.state.animations.removeListener(listener);
                     break;
             }
+        }
+        removeProjectChangeListener(listener) {
+            this.changeListeners = this.changeListeners.filter(l => l != listener);
         }
         loadPackage(pack) {
             const allPackages = pack.sortedDeps();
@@ -18296,6 +18303,9 @@ var pxt;
         onChange() {
             this.needsRebuild = true;
             this.state.revision = this.nextID++;
+            for (const handler of this.changeListeners) {
+                handler(this.state.revision);
+            }
         }
         readImages(allJRes, isProjectFile = false) {
             const assets = [];

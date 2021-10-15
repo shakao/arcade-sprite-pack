@@ -18,7 +18,7 @@ class App extends React.Component<{}, AppState> {
     constructor(props: {}) {
         super(props);
         this.state = {
-            asset: getTilemapProject().createNewImage(24, 42),
+            asset: this.getAssetForTab(AssetType.Image),
             activeTab: AssetType.Image
         };
     }
@@ -57,28 +57,7 @@ class App extends React.Component<{}, AppState> {
     onTabSelected = (tab: pxt.AssetType) => {
         if (tab === this.state.activeTab) return;
 
-        let asset: pxt.Asset;
-        const project = getTilemapProject();
-        switch (tab) {
-            case AssetType.Image:
-                asset = project.getAssets(AssetType.Image)[0] || project.createNewImage(16, 16);
-                break;
-            case AssetType.Tile:
-                asset = project.getAssets(AssetType.Tile)[0] || project.createNewTile(new pxt.sprite.Bitmap(16, 16).data());
-                break;
-            case AssetType.Animation:
-                asset = project.getAssets(AssetType.Animation)[0] || project.createNewAnimation(16, 16);
-                break;
-            case AssetType.Tilemap:
-                asset = project.getAssets(AssetType.Tilemap)[0];
-
-                if (!asset) {
-                    const [id, tilemap] = project.createNewTilemap("level", 16, 16);
-                    asset = project.lookupAsset(AssetType.Tilemap, id);
-                }
-                break;
-        }
-
+        const asset = this.getAssetForTab(tab);
         this.setState({ activeTab: tab, asset: asset! }, () => {
             this.openCurrentAsset();
         });
@@ -97,6 +76,9 @@ class App extends React.Component<{}, AppState> {
     }
 
     onAssetSelected = (asset: pxt.Asset) => {
+        if (asset === null) {
+            asset = this.getAssetForTab(this.state.activeTab);
+        }
         this.setState({
             asset: asset
         }, () => this.openCurrentAsset());
@@ -181,8 +163,38 @@ class App extends React.Component<{}, AppState> {
             }
         }
         generatePreviewURI(asset);
-
         getTilemapProject().updateAsset(asset);
+    }
+
+    protected getAssetForTab(tab: pxt.AssetType) {
+        let asset: pxt.Asset;
+        const project = getTilemapProject();
+        switch (tab) {
+            case AssetType.Image:
+                asset = project.getAssets(AssetType.Image)[0] || project.createNewImage(16, 16);
+                break;
+            case AssetType.Tile:
+                asset = project.getAssets(AssetType.Tile)[0] || project.createNewTile(new pxt.sprite.Bitmap(16, 16).data());
+                break;
+            case AssetType.Animation:
+                asset = project.getAssets(AssetType.Animation)[0] || project.createNewAnimation(16, 16);
+                break;
+            case AssetType.Tilemap:
+                asset = project.getAssets(AssetType.Tilemap)[0];
+
+                if (!asset) {
+                    const [id, tilemap] = project.createNewTilemap("level", 16, 16);
+                    asset = project.lookupAsset(AssetType.Tilemap, id);
+                }
+                break;
+        }
+
+        if (!asset!.meta.displayName) {
+            asset!.meta.displayName = pxt.getDefaultAssetDisplayName(tab);
+            asset = project.updateAsset(asset!);
+        }
+
+        return asset!;
     }
 }
 

@@ -31,6 +31,8 @@ body, html, #root {
   display: flex;
   flex-direction: row;
   padding: 0.25rem;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 #editor {

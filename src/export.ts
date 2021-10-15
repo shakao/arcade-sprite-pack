@@ -3,6 +3,7 @@ import { lzmaCompressAsync } from "./lzma";
 import { JRes } from "./share";
 import { escapeIdentifier, IMAGE_MIME_TYPE, browserDownloadUInt8Array, browserDownloadText } from "./util";
 import { imgEncodeJRESImage } from "./images";
+import { getTilemapProject } from "./project";
 
 
 interface PXTHexFile {
@@ -111,9 +112,13 @@ const MAIN_TS = "main.ts";
 const PXT_JSON = "pxt.json";
 const README_MD = "README.md";
 
+const TILEMAP_JRES = "tilemap.g.jres";
+const IMAGE_JRES = "images.g.jres";
+const TILEMAP_G_TS = "tilemap.g.ts";
+const IMAGE_G_TS = "images.g.ts";
 
-function createProjectBlobAsync(name: string, assetTS: string, assetJRES: string, testTS: string) {
-    const config = JSON.stringify({
+function createProjectBlobAsync(name: string) {
+    const config = {
         "name": name,
         "dependencies": {
             "device": "*" // required for arcade
@@ -121,27 +126,48 @@ function createProjectBlobAsync(name: string, assetTS: string, assetJRES: string
         "description": "An asset pack for MakeCode Arcade",
         "files": [
             MAIN_BLOCKS,
-            MAIN_TS,
-            ASSET_JRES,
-            ASSET_TS
+            MAIN_TS
         ],
         "testFiles": [
             TEST_TS
         ]
-    }, null, 4);
+    };
+
 
 
     const files: {[index: string]: string} = {};
-    files[PXT_JSON] = config;
+
+    const project = getTilemapProject();
+
+    const tmjres = project.getProjectTilesetJRes();
+
+    if (Object.keys(tmjres).length > 1) {
+        const stringRes = JSON.stringify(tmjres, null, 4);
+        const ts = pxt.emitTilemapsFromJRes(tmjres);
+        files[TILEMAP_JRES] = stringRes;
+        files[TILEMAP_G_TS] = ts;
+        config.files.push(TILEMAP_JRES);
+        config.files.push(TILEMAP_G_TS);
+    }
+
+    const imgjres = project.getProjectAssetsJRes();
+
+    if (Object.keys(imgjres).length > 1) {
+        const stringRes = JSON.stringify(imgjres, null, 4);
+        const ts = pxt.emitProjectImages(imgjres);
+        files[IMAGE_JRES] = stringRes;
+        files[IMAGE_G_TS] = ts;
+        config.files.push(IMAGE_JRES);
+        config.files.push(IMAGE_G_TS);
+    }
+
+    files[PXT_JSON] = JSON.stringify(config, null, 4);
     files[MAIN_TS] = PROJECT_COMMENT;
-    files[TEST_TS] = testTS;
-    files[ASSET_TS] = assetTS;
-    files[ASSET_JRES] = assetJRES;
+    files[TEST_TS] = "";
     files[README_MD] = ""
     files[MAIN_BLOCKS] =`<xml xmlns="http://www.w3.org/1999/xhtml"><variables></variables><block type="pxt-on-start" x="0" y="0"></block></xml>`;
 
-
-    const project: PXTHexFile = {
+    const out: PXTHexFile = {
         meta: {
             cloudId: "pxt/arcade",
             targetVersions: {},
@@ -151,71 +177,120 @@ function createProjectBlobAsync(name: string, assetTS: string, assetJRES: string
         source: JSON.stringify(files)
     };
 
-    return lzmaCompressAsync(JSON.stringify(project));
+    return lzmaCompressAsync(JSON.stringify(out));
 }
 
-export async function downloadProjectAsync(name: string, assets: AssetInfo[]) {
-    let assetTS = "";
 
-    const assetJRES: {[index: string]: JRes | string} = {};
-    const takenNames: {[index: string]: boolean} = {};
-
-    const projectNamespace = escapeIdentifier(name) + "Sprites";
-    const qualifiedNames: string[] = [];
-
-
-    // @ts-ignore
-    assetJRES["*"] = {
-        namespace: projectNamespace,
-        mimeType: IMAGE_MIME_TYPE
-    }
-
-    for (const asset of assets) {
-        const identifier = escapeName(asset.name);
-
-        if (asset.jres.tilemapTile) {
-            assetJRES[identifier] = {
-                id: identifier,
-                data: asset.jres.data,
-                tilemapTile: true,
-                mimeType: IMAGE_MIME_TYPE
-            };
-            assetTS += `    //% fixedInstance jres blockIdentity=images._tile\n`
-        }
-        else {
-            assetJRES[identifier] = asset.jres.data;
-            assetTS += `    //% fixedInstance jres blockIdentity=images._image\n`
-        }
-
-        assetTS += `    export const ${identifier} = image.ofBuffer(hex\`\`);\n`
-        qualifiedNames.push(projectNamespace + "." + identifier);
-    }
-
-    assetTS = `namespace ${projectNamespace} {\n${assetTS}\n}\n`;
-
-    const testTS = `const allImages = [${qualifiedNames.join(",")}]\n${TEST_SCRIPT}`;
-    const project = await createProjectBlobAsync(name, assetTS, JSON.stringify(assetJRES), testTS);
-    return browserDownloadUInt8Array(project, name + ".mkcd");
-
-
-
-    function escapeName(name: string) {
-        const escaped = escapeIdentifier(name);
-
-        if (!takenNames[escaped]) {
-            takenNames[escaped] = true;
-            return escaped;
-        }
-
-        let index = 2;
-        while (takenNames[escaped + index]) {
-            index++;
-        }
-
-        takenNames[escaped + index] = true;
-        return escaped + index;
-    }
+export async function downloadProjectAsync(name: string) {
+    const blob = await createProjectBlobAsync(name);
+    return browserDownloadUInt8Array(blob, name + ".mkcd");
 }
+
+
+// function createProjectBlobAsyncOld(name: string, assetTS: string, assetJRES: string, testTS: string) {
+//     const config = JSON.stringify({
+//         "name": name,
+//         "dependencies": {
+//             "device": "*" // required for arcade
+//         },
+//         "description": "An asset pack for MakeCode Arcade",
+//         "files": [
+//             MAIN_BLOCKS,
+//             MAIN_TS,
+//             ASSET_JRES,
+//             ASSET_TS
+//         ],
+//         "testFiles": [
+//             TEST_TS
+//         ]
+//     }, null, 4);
+
+
+//     const files: {[index: string]: string} = {};
+//     files[PXT_JSON] = config;
+//     files[MAIN_TS] = PROJECT_COMMENT;
+//     files[TEST_TS] = testTS;
+//     files[ASSET_TS] = assetTS;
+//     files[ASSET_JRES] = assetJRES;
+//     files[README_MD] = ""
+//     files[MAIN_BLOCKS] =`<xml xmlns="http://www.w3.org/1999/xhtml"><variables></variables><block type="pxt-on-start" x="0" y="0"></block></xml>`;
+
+
+//     const project: PXTHexFile = {
+//         meta: {
+//             cloudId: "pxt/arcade",
+//             targetVersions: {},
+//             name: name,
+//             editor: "tsprj"
+//         },
+//         source: JSON.stringify(files)
+//     };
+
+//     return lzmaCompressAsync(JSON.stringify(project));
+// }
+
+// export async function downloadProjectAsync(name: string, assets: AssetInfo[]) {
+//     let assetTS = "";
+
+//     const assetJRES: {[index: string]: JRes | string} = {};
+//     const takenNames: {[index: string]: boolean} = {};
+
+//     const projectNamespace = escapeIdentifier(name) + "Sprites";
+//     const qualifiedNames: string[] = [];
+
+
+//     // @ts-ignore
+//     assetJRES["*"] = {
+//         namespace: projectNamespace,
+//         mimeType: IMAGE_MIME_TYPE
+//     }
+
+//     for (const asset of assets) {
+//         const identifier = escapeName(asset.name);
+
+//         if (asset.jres.tilemapTile) {
+//             assetJRES[identifier] = {
+//                 id: identifier,
+//                 data: asset.jres.data,
+//                 tilemapTile: true,
+//                 mimeType: IMAGE_MIME_TYPE
+//             };
+//             assetTS += `    //% fixedInstance jres blockIdentity=images._tile\n`
+//         }
+//         else {
+//             assetJRES[identifier] = asset.jres.data;
+//             assetTS += `    //% fixedInstance jres blockIdentity=images._image\n`
+//         }
+
+//         assetTS += `    export const ${identifier} = image.ofBuffer(hex\`\`);\n`
+//         qualifiedNames.push(projectNamespace + "." + identifier);
+//     }
+
+//     assetTS = `namespace ${projectNamespace} {\n${assetTS}\n}\n`;
+
+//     const testTS = `const allImages = [${qualifiedNames.join(",")}]\n${TEST_SCRIPT}`;
+//     const project = await createProjectBlobAsync(name, assetTS, JSON.stringify(assetJRES), testTS);
+//     return browserDownloadUInt8Array(project, name + ".mkcd");
+
+
+
+//     function escapeName(name: string) {
+//         const escaped = escapeIdentifier(name);
+
+//         if (!takenNames[escaped]) {
+//             takenNames[escaped] = true;
+//             return escaped;
+//         }
+
+//         let index = 2;
+//         while (takenNames[escaped + index]) {
+//             index++;
+//         }
+
+//         takenNames[escaped + index] = true;
+//         return escaped + index;
+//     }
+// }
 
 export async function downloadTypeScriptAsync(name: string, assets: AssetInfo[]) {
     let assetTS = "";

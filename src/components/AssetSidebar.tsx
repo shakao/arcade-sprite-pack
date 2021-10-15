@@ -16,10 +16,8 @@ export const AssetSidebar = (props: AssetSidebarProps) => {
     const { showAlert, activeTab, asset, onAssetSelected } = props;
     return <div className="asset-sidebar">
         <div className="asset-details-container">
-            <AssetDetails asset={asset} showAlert={showAlert} />
+            <AssetDetails asset={asset} showAlert={showAlert} onAssetSelected={onAssetSelected} />
         </div>
-        <div className="asset-list-container">
-            <AssetList activeTab={activeTab} asset={asset} onAssetSelected={onAssetSelected} />
-        </div>
+        <AssetList activeTab={activeTab} asset={asset} onAssetSelected={onAssetSelected} />
     </div>
 }

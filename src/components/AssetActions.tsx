@@ -3,6 +3,8 @@ import { newTilemapProject } from "../project";
 import { AlertProps } from "./Alert";
 
 import '../styles/AssetActions.css';
+import { downloadProjectAsync } from "../export";
+import { importScriptAsync } from "../import";
 
 
 interface AssetActionsProps {
@@ -11,13 +13,10 @@ interface AssetActionsProps {
 
 export const AssetActions = (props: AssetActionsProps) => {
     return <div className="asset-list-buttons">
-    <div className="asset-button" title="Add asset" onClick={onAddButtonClick}>
-        <i className="icon plus square outline"></i>
-    </div>
     <div className="asset-button" title="Clear all assets" onClick={() => onDeleteButtonClick(props)}>
         <i className="icon delete"></i>
     </div>
-    <div className="asset-button" title="Import assets" onClick={onImportButtonClick}>
+    <div className="asset-button" title="Import assets" onClick={() => onImportButtonClick(props)}>
         <i className="icon upload"></i>
     </div>
     <div className="asset-button" title="Export assets" onClick={onExportButtonClick}>
@@ -32,7 +31,7 @@ function onAddButtonClick() {
 
 function onDeleteButtonClick(props: AssetActionsProps) {
     const { showAlert } = props;
-    showAlert(({
+    showAlert({
         icon: "exclamation triangle",
         title: "WARNING",
         text: "This will delete ALL assets in this project. You will not be able to undo this action.",
@@ -46,13 +45,35 @@ function onDeleteButtonClick(props: AssetActionsProps) {
                 }
             }]
     }
-    ));
+    );
 }
 
-function onImportButtonClick() {
+function onImportButtonClick(props: AssetActionsProps) {
+    const { showAlert } = props;
 
+    showAlert({
+        icon: "upload",
+        type: "import",
+        title: "Import Sprites",
+        text: "Paste a URL from MakeCode Arcade or drag and drop PNG files to import existing sprites.",
+        options: [{
+                text: "Add to project",
+                onClick: (input) => {
+                    if (input) importScriptAsync(input)
+                }
+            },
+            {
+                text: "Overwrite project",
+                onClick: (input) => {
+                    if (input) {
+                        newTilemapProject();
+                        importScriptAsync(input)
+                    }
+                }
+            }]
+    });
 }
 
 function onExportButtonClick() {
-
+    downloadProjectAsync("project");
 }

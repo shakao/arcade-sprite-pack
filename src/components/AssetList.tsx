@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { AssetType, getTilemapProject } from "../project";
 import { AssetPreview } from "./AssetPreview";
 
@@ -13,7 +13,9 @@ export interface AssetListProps {
 
 export const AssetList = (props: AssetListProps) => {
     const { activeTab, onAssetSelected } = props;
-    const assets = getTilemapProject().getAssets(activeTab);
+    const project = getTilemapProject();
+
+    const assets = project.getAssets(activeTab);
     assets.sort(compareInternalId);
 
     let pluralized = "";
@@ -37,13 +39,25 @@ export const AssetList = (props: AssetListProps) => {
         onAssetSelected(createEmptyAsset(activeTab));
     }
 
+    const [revision, setRevision] = useState(0);
+
+
+    const revisionListener = (revision: number) => {
+        setRevision(revision);
+        project.removeProjectChangeListener(revisionListener);
+    };
+
+    project.addProjectChangeListener(revisionListener);
+
     return <div className="asset-list-container">
         <div className="asset-details-header">
             All {pluralized}
         </div>
-        <div className="asset-list">
-            { assets.map(a => <AssetPreview key={a.internalID} asset={a} onClick={onAssetSelected} />) }
-            <Button label="Create New" title="Create New Asset" onClick={createNewAsset} />
+        <div className="asset-list-outer">
+            <div className="asset-list">
+                { assets.map(a => <AssetPreview key={a.internalID} asset={a} onClick={onAssetSelected} />) }
+                <Button label="Create New" title="Create New Asset" onClick={createNewAsset} />
+            </div>
         </div>
     </div>
 }
@@ -69,6 +83,12 @@ export function createEmptyAsset(kind: pxt.AssetType) {
             const [id, tilemap] = project.createNewTilemap("level", 16, 16);
             asset = project.lookupAsset(AssetType.Tilemap, id);
             break;
+    }
+
+    if (!asset!.meta.displayName) {
+        asset!.meta.displayName = pxt.getDefaultAssetDisplayName(kind);
+        project.updateAsset(asset!);
+        asset = project.lookupAsset(asset!.type, asset!.id);
     }
 
     return asset!;

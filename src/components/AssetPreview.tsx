@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { getTilemapProject } from '../project';
 
 import "../styles/AssetPreview.css";
+import { generatePreviewURI } from '../util';
 
 
 export interface AssetPreviewProps {
@@ -22,6 +23,7 @@ export const AssetPreview = (props: AssetPreviewProps) => {
     project.addChangeListener(asset, onAssetChange);
 
     let updated = project.lookupAsset(asset.type, asset.id);
+    generatePreviewURI(updated);
 
     return <div className="asset-preview" onClick={() => onClick(updated)}>
         <img src={updated.previewURI} />

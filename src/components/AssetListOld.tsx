@@ -290,7 +290,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         onClick: () => {
                             // download as MKCD
                             this.hideAlert();
-                            downloadProjectAsync(this._exportInputRef.value || PROJECT_NAME, this.state.items);
+                            // downloadProjectAsync(this._exportInputRef.value || PROJECT_NAME, this.state.items);
                         }
                     },
                     {
