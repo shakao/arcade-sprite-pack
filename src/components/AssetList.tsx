@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AssetType, getTilemapProject } from "../project";
+import { AssetType, getTilemapProject, saveProject } from "../project";
 import { AssetPreview } from "./AssetPreview";
 
 import "../styles/AssetList.css";
@@ -41,9 +41,14 @@ export const AssetList = (props: AssetListProps) => {
 
     const [revision, setRevision] = useState(0);
 
+    const debouncedSave = pxt.Util.debounce(() => {
+        saveProject();
+    }, 500)
+
 
     const revisionListener = (revision: number) => {
         setRevision(revision);
+        debouncedSave();
         project.removeProjectChangeListener(revisionListener);
     };
 

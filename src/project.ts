@@ -18,7 +18,9 @@ let projectPalette = [
     "#e5cdc4",
     "#91463d",
     "#000000"
-]
+];
+
+const STORAGE_KEY = "tilemap-project";
 
 export const AssetType = {
     Image: "image" as pxt.AssetType,
@@ -31,7 +33,7 @@ export function getTilemapProject() {
     return project;
 }
 
-export function newTilemapProject() {
+export function newTilemapProject(empty = false) {
     project = new pxt.TilemapProject();
     projectPalette = [
         "#000000",
@@ -51,6 +53,16 @@ export function newTilemapProject() {
         "#91463d",
         "#000000"
     ]
+
+    if (!empty) {
+        const saved = window.localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const blob = JSON.parse(saved);
+            project.loadAssetsJRes(blob.images);
+            project.loadTilemapJRes(blob.tilemaps);
+        }
+    }
+
     return project;
 }
 
@@ -58,3 +70,13 @@ export function getProjectPalette() {
     return projectPalette.slice();
 }
 
+export function saveProject() {
+    if (project) {
+        const saveBlob = {
+            images: project.getProjectAssetsJRes(),
+            tilemaps : project.getProjectTilesetJRes()
+        }
+
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(saveBlob));
+    }
+}

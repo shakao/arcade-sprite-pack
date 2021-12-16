@@ -41,7 +41,7 @@ function onDeleteButtonClick(props: AssetActionsProps) {
                     backgroundColor: "#dc3f34"
                 },
                 onClick: () => {
-                    newTilemapProject();
+                    newTilemapProject(true);
                 }
             }]
     }
@@ -66,7 +66,7 @@ function onImportButtonClick(props: AssetActionsProps) {
                 text: "Overwrite project",
                 onClick: (input) => {
                     if (input) {
-                        newTilemapProject();
+                        newTilemapProject(true);
                         importScriptAsync(input)
                     }
                 }
