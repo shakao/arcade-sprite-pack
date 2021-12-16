@@ -11,7 +11,7 @@
 }
 
 .asset-list {
-    width: 17rem;
+    width: 100%;
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;

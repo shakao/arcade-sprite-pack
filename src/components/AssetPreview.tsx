@@ -7,11 +7,12 @@ import { generatePreviewURI } from '../util';
 
 export interface AssetPreviewProps {
     asset: pxt.Asset;
+    selected?: boolean;
     onClick: (asset: pxt.Asset) => void;
 }
 
 export const AssetPreview = (props: AssetPreviewProps) => {
-    const { asset, onClick } = props;
+    const { asset, selected, onClick } = props;
 
     const [ revision, setRevision ] = useState(0);
     const project = getTilemapProject();
@@ -25,7 +26,7 @@ export const AssetPreview = (props: AssetPreviewProps) => {
     let updated = project.lookupAsset(asset.type, asset.id);
     generatePreviewURI(updated);
 
-    return <div className="asset-preview" onClick={() => onClick(updated)}>
+    return <div className={`asset-preview ${selected ? "selected" : ""}`} onClick={() => onClick(updated)}>
         <img src={updated.previewURI} />
     </div>
 }
