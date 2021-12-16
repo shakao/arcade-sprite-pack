@@ -185,19 +185,21 @@ var pxt;
             highContrast: false,
             language: pxt.appTarget.appTheme.defaultLocale,
             reader: "",
-            skillmap: { mapProgress: {}, completedTags: {} }
+            skillmap: { mapProgress: {}, completedTags: {} },
+            email: false
         });
         let _client;
         function client() { return _client; }
         auth.client = client;
-        const PREFERENCES_DEBOUNCE_MS = 5 * 1000;
-        const PREFERENCES_DEBOUNCE_MAX_MS = 30 * 1000;
+        const PREFERENCES_DEBOUNCE_MS = 1 * 1000;
+        const PREFERENCES_DEBOUNCE_MAX_MS = 10 * 1000;
         let debouncePreferencesChangedTimeout = 0;
         let debouncePreferencesChangedStarted = 0;
         class AuthClient {
             constructor() {
                 this.initialUserPreferences_ = undefined;
                 this.initialAuthCheck_ = undefined;
+                this.patchQueue = [];
                 pxt.Util.assert(!_client);
                 // Set global instance.
                 _client = this;
@@ -387,40 +389,87 @@ var pxt;
                 }
                 return result.success;
             }
-            async patchUserPreferencesAsync(ops) {
-                ops = Array.isArray(ops) ? ops : [ops];
-                if (!ops.length) {
-                    return;
+            async patchUserPreferencesAsync(patchOps, opts = {}) {
+                const defaultSuccessAsync = async () => ({ success: true, res: await this.userPreferencesAsync() });
+                patchOps = Array.isArray(patchOps) ? patchOps : [patchOps];
+                patchOps = patchOps.filter(op => !!op);
+                if (!patchOps.length) {
+                    return await defaultSuccessAsync();
                 }
+                const patchDiff = (pSrc, ops, filter) => {
+                    // Apply patches to pDst and return the diff as a set of new patch ops.
+                    const pDst = pxt.U.deepCopy(pSrc);
+                    ts.pxtc.jsonPatch.patchInPlace(pDst, ops);
+                    let diff = ts.pxtc.jsonPatch.diff(pSrc, pDst);
+                    // Run caller-provided filter
+                    if (diff.length && filter) {
+                        diff = diff.filter(filter);
+                    }
+                    return diff;
+                };
+                // Process incoming patch operations to produce a more fine-grained set of diffs. Incoming patches may be overly destructive
+                // Apply the patch in isolation and get the diff from original
                 const curPref = await this.userPreferencesAsync();
-                ts.pxtc.jsonPatch.patchInPlace(curPref, ops);
-                await this.setUserPreferencesAsync(curPref);
-                // If we're not logged in, non-persistent local state is all we'll use
-                if (!await this.loggedInAsync()) {
-                    return;
+                const diff = patchDiff(curPref, patchOps, opts.filter);
+                if (!diff.length) {
+                    return await defaultSuccessAsync();
                 }
-                // If the user is logged in, save to cloud, but debounce the api call as this can be called frequently from skillmaps
+                // Apply the new diff to the current state
+                ts.pxtc.jsonPatch.patchInPlace(curPref, diff);
+                await this.setUserPreferencesAsync(curPref);
+                // If the user is not logged in, non-persistent local state is all we'll use (no sync to cloud)
+                if (!await this.loggedInAsync()) {
+                    return await defaultSuccessAsync();
+                }
+                // If the user is logged in, sync to cloud, but debounce the api call as this can be called frequently from skillmaps
+                // Queue the patch for sync with backend
+                this.patchQueue.push({ ops: patchOps, filter: opts.filter });
                 clearTimeout(debouncePreferencesChangedTimeout);
-                const savePrefs = async () => {
+                const syncPrefs = async () => {
                     debouncePreferencesChangedStarted = 0;
-                    const result = await this.apiAsync('/api/user/preferences', ops, 'PATCH');
-                    if (result.success) {
-                        pxt.debug("Updating local user preferences w/ cloud data after result of POST");
-                        // Set user profile from returned value so we stay in-sync
-                        this.setUserPreferencesAsync(result.resp);
+                    if (!this.patchQueue.length) {
+                        return await defaultSuccessAsync();
+                    }
+                    // Fetch latest prefs from remote
+                    const getResult = await this.apiAsync('/api/user/preferences');
+                    if (!getResult.success) {
+                        pxt.reportError("identity", "failed to fetch preferences for patch", getResult);
+                        return { success: false, res: undefined };
+                    }
+                    // Apply queued patches to the remote state in isolation and develop a final diff to send to the backend
+                    const remotePrefs = pxt.U.deepCopy(getResult.resp) || auth.DEFAULT_USER_PREFERENCES();
+                    const patchQueue = this.patchQueue;
+                    this.patchQueue = []; // Reset the queue
+                    patchQueue.forEach(patch => {
+                        const diff = patchDiff(remotePrefs, patch.ops, patch.filter);
+                        ts.pxtc.jsonPatch.patchInPlace(remotePrefs, diff);
+                    });
+                    // Diff the original and patched remote states to get a final set of patch operations
+                    const finalOps = pxtc.jsonPatch.diff(getResult.resp, remotePrefs);
+                    const patchResult = await this.apiAsync('/api/user/preferences', finalOps, 'PATCH');
+                    if (patchResult.success) {
+                        // Set user profile from returned value so we stay in sync
+                        this.setUserPreferencesAsync(patchResult.resp);
                     }
                     else {
-                        pxt.reportError("identity", "update preferences failed", result);
+                        pxt.reportError("identity", "failed to patch preferences", patchResult);
                     }
+                    return { success: patchResult.success, res: patchResult.resp };
                 };
-                if (!debouncePreferencesChangedStarted) {
-                    debouncePreferencesChangedStarted = pxt.U.now();
-                }
-                if (PREFERENCES_DEBOUNCE_MAX_MS < pxt.U.now() - debouncePreferencesChangedStarted) {
-                    await savePrefs();
+                if (opts.immediate) {
+                    return await syncPrefs();
                 }
                 else {
-                    debouncePreferencesChangedTimeout = setTimeout(savePrefs, PREFERENCES_DEBOUNCE_MS);
+                    if (!debouncePreferencesChangedStarted) {
+                        debouncePreferencesChangedStarted = pxt.U.now();
+                    }
+                    if (PREFERENCES_DEBOUNCE_MAX_MS < pxt.U.now() - debouncePreferencesChangedStarted) {
+                        return await syncPrefs();
+                    }
+                    else {
+                        debouncePreferencesChangedTimeout = setTimeout(syncPrefs, PREFERENCES_DEBOUNCE_MS);
+                        return { success: false, res: undefined }; // This needs to be implemented correctly to return a promise with the debouncer
+                    }
                 }
             }
             /*protected*/ hasUserId() {
@@ -670,6 +719,17 @@ var pxt;
             }
         }
         auth.generateUserProfilePicDataUrl = generateUserProfilePicDataUrl;
+        /**
+         * Checks only the ID and sourceURL
+         */
+        function badgeEquals(badgeA, badgeB) {
+            return badgeA.id === badgeB.id && badgeA.sourceURL === badgeB.sourceURL;
+        }
+        auth.badgeEquals = badgeEquals;
+        function hasBadge(preferences, badge) {
+            return preferences.badges.some(toCheck => badgeEquals(toCheck, badge));
+        }
+        auth.hasBadge = hasBadge;
     })(auth = pxt.auth || (pxt.auth = {}));
 })(pxt || (pxt = {}));
 // Needs to be in its own file to avoid a circular dependency: util.ts -> main.ts -> util.ts
@@ -1203,6 +1263,18 @@ var ts;
                 return arr;
             }
             Util.reversed = reversed;
+            function arrayEquals(a, b, compare = (c, d) => c === d) {
+                if (a == b)
+                    return true;
+                if (!a && b || !b && a || a.length !== b.length)
+                    return false;
+                for (let i = 0; i < a.length; i++) {
+                    if (!compare(a[i], b[i]))
+                        return false;
+                }
+                return true;
+            }
+            Util.arrayEquals = arrayEquals;
             function iterMap(m, f) {
                 Object.keys(m).forEach(k => f(k, m[k]));
             }
@@ -1478,6 +1550,18 @@ var ts;
                 return r;
             }
             Util.toSet = toSet;
+            function deepCopy(src) {
+                if (typeof src !== "object" || src === null) {
+                    return src;
+                }
+                const dst = Array.isArray(src) ? [] : {};
+                for (const key in src) {
+                    const value = src[key];
+                    dst[key] = deepCopy(value);
+                }
+                return dst;
+            }
+            Util.deepCopy = deepCopy;
             function toArray(a) {
                 if (Array.isArray(a)) {
                     return a;
@@ -3026,6 +3110,10 @@ var ts;
                 }
             }
             jsonPatch.patchInPlace = patchInPlace;
+            function opsAreEqual(a, b) {
+                return (a.op === b.op && pxtc.U.arrayEquals(a.path, b.path));
+            }
+            jsonPatch.opsAreEqual = opsAreEqual;
         })(jsonPatch = pxtc.jsonPatch || (pxtc.jsonPatch = {}));
     })(pxtc = ts.pxtc || (ts.pxtc = {}));
 })(ts || (ts = {}));
@@ -3383,6 +3471,8 @@ var pxt;
         }
         if (!comp.switches)
             comp.switches = {};
+        if (comp.nativeType == pxtc.NATIVE_TYPE_VM)
+            comp.sourceMap = true;
         pxt.U.jsonCopyFrom(comp.switches, savedSwitches);
         // JS ref counting currently not supported
         comp.jsRefCounting = false;
@@ -3891,7 +3981,7 @@ var pxt;
                 'pxt_controls_for': {
                     name: pxt.Util.lf("a loop that repeats the number of times you say"),
                     tooltip: pxt.Util.lf("Have the variable '{0}' take on the values from 0 to the end number, counting by 1, and do the specified blocks."),
-                    url: 'blocks/loops/for',
+                    url: '/blocks/loops/for',
                     category: 'loops',
                     block: {
                         message0: pxt.Util.lf("for %1 from 0 to %2"),
@@ -3902,7 +3992,7 @@ var pxt;
                 'controls_simple_for': {
                     name: pxt.Util.lf("a loop that repeats the number of times you say"),
                     tooltip: pxt.Util.lf("Have the variable '{0}' take on the values from 0 to the end number, counting by 1, and do the specified blocks."),
-                    url: 'blocks/loops/for',
+                    url: '/blocks/loops/for',
                     category: 'loops',
                     block: {
                         message0: pxt.Util.lf("for %1 from 0 to %2"),
@@ -3913,7 +4003,7 @@ var pxt;
                 'pxt_controls_for_of': {
                     name: pxt.Util.lf("a loop that repeats for each value in an array"),
                     tooltip: pxt.Util.lf("Have the variable '{0}' take the value of each item in the array one by one, and do the specified blocks."),
-                    url: 'blocks/loops/for-of',
+                    url: '/blocks/loops/for-of',
                     category: 'loops',
                     block: {
                         message0: pxt.Util.lf("for element %1 of %2"),
@@ -3924,7 +4014,7 @@ var pxt;
                 'controls_for_of': {
                     name: pxt.Util.lf("a loop that repeats for each value in an array"),
                     tooltip: pxt.Util.lf("Have the variable '{0}' take the value of each item in the array one by one, and do the specified blocks."),
-                    url: 'blocks/loops/for-of',
+                    url: '/blocks/loops/for-of',
                     category: 'loops',
                     block: {
                         message0: pxt.Util.lf("for element %1 of %2"),
@@ -4209,7 +4299,7 @@ var pxt;
                 'text': {
                     name: pxt.Util.lf("a piece of text"),
                     tooltip: pxt.Util.lf("A letter, word, or line of text."),
-                    url: 'types/string',
+                    url: '/types/string',
                     category: 'text',
                     block: {
                         search: pxt.Util.lf("a piece of text") // Only used for search; this string is not surfaced in the block's text
@@ -4218,7 +4308,7 @@ var pxt;
                 'text_length': {
                     name: pxt.Util.lf("number of characters in the string"),
                     tooltip: pxt.Util.lf("Returns the number of letters (including spaces) in the provided text."),
-                    url: 'reference/text/length',
+                    url: '/reference/text/length',
                     category: 'text',
                     block: {
                         TEXT_LENGTH_TITLE: pxt.Util.lf("length of %1")
@@ -4227,7 +4317,7 @@ var pxt;
                 'text_join': {
                     name: pxt.Util.lf("join items to create text"),
                     tooltip: pxt.Util.lf("Create a piece of text by joining together any number of items."),
-                    url: 'reference/text/join',
+                    url: '/reference/text/join',
                     category: 'text',
                     block: {
                         TEXT_JOIN_TITLE_CREATEWITH: pxt.Util.lf("join")
@@ -4236,7 +4326,7 @@ var pxt;
                 'procedures_defnoreturn': {
                     name: pxt.Util.lf("define the function"),
                     tooltip: pxt.Util.lf("Create a function."),
-                    url: 'types/function/define',
+                    url: '/types/function/define',
                     category: 'functions',
                     block: {
                         PROCEDURES_DEFNORETURN_TITLE: pxt.Util.lf("function"),
@@ -4246,7 +4336,7 @@ var pxt;
                 'procedures_callnoreturn': {
                     name: pxt.Util.lf("call the function"),
                     tooltip: pxt.Util.lf("Call the user-defined function."),
-                    url: 'types/function/call',
+                    url: '/types/function/call',
                     category: 'functions',
                     block: {
                         PROCEDURES_CALLNORETURN_TITLE: pxt.Util.lf("call function")
@@ -4255,7 +4345,7 @@ var pxt;
                 'function_return': {
                     name: pxt.Util.lf("return a value from within a function"),
                     tooltip: pxt.Util.lf("Return a value from within a user-defined function."),
-                    url: 'types/function/return',
+                    url: '/types/function/return',
                     category: 'functions',
                     block: {
                         message_with_value: pxt.Util.lf("return %1"),
@@ -4265,7 +4355,7 @@ var pxt;
                 'function_definition': {
                     name: pxt.Util.lf("define the function"),
                     tooltip: pxt.Util.lf("Create a function."),
-                    url: 'types/function/define',
+                    url: '/types/function/define',
                     category: 'functions',
                     block: {
                         FUNCTIONS_EDIT_OPTION: pxt.Util.lf("Edit Function")
@@ -4274,7 +4364,7 @@ var pxt;
                 'function_call': {
                     name: pxt.Util.lf("call the function"),
                     tooltip: pxt.Util.lf("Call the user-defined function."),
-                    url: 'types/function/call',
+                    url: '/types/function/call',
                     category: 'functions',
                     block: {
                         FUNCTIONS_CALL_TITLE: pxt.Util.lf("call"),
@@ -4284,7 +4374,7 @@ var pxt;
                 'function_call_output': {
                     name: pxt.Util.lf("call the function with a return value"),
                     tooltip: pxt.Util.lf("Call the user-defined function with a return value."),
-                    url: 'types/function/call',
+                    url: '/types/function/call',
                     category: 'functions',
                     block: {}
                 }
@@ -6977,7 +7067,7 @@ int main() {
                     .then(ret => new Promise((resolve, reject) => {
                     let retry = 0;
                     const delay = 8000; // ms
-                    const maxWait = 180000; // ms
+                    const maxWait = 300000; // ms
                     const startTry = pxt.U.now();
                     const tryGet = () => {
                         retry++;
@@ -15177,6 +15267,7 @@ var ts;
         pxtc.BINARY_ELF = "binary.elf";
         pxtc.BINARY_PXT64 = "binary.pxt64";
         pxtc.BINARY_ESP = "binary.bin";
+        pxtc.BINARY_SRCMAP = "binary.srcmap";
         pxtc.NATIVE_TYPE_THUMB = "thumb";
         pxtc.NATIVE_TYPE_VM = "vm";
         function BuildSourceMapHelpers(sourceMap, tsFile, pyFile) {
@@ -18511,8 +18602,8 @@ var pxt;
         if (a == b)
             return true;
         if (a.id !== b.id || a.type !== b.type ||
-            !arrayEquals(a.meta.tags, b.meta.tags) ||
-            !arrayEquals(a.meta.blockIDs, b.meta.blockIDs) ||
+            !pxt.U.arrayEquals(a.meta.tags, b.meta.tags) ||
+            !pxt.U.arrayEquals(a.meta.blockIDs, b.meta.blockIDs) ||
             a.meta.displayName !== b.meta.displayName)
             return false;
         switch (a.type) {
@@ -18521,7 +18612,7 @@ var pxt;
                 return pxt.sprite.bitmapEquals(a.bitmap, b.bitmap);
             case "animation" /* Animation */:
                 const bAnimation = b;
-                return a.interval === bAnimation.interval && arrayEquals(a.frames, bAnimation.frames, pxt.sprite.bitmapEquals);
+                return a.interval === bAnimation.interval && pxt.U.arrayEquals(a.frames, bAnimation.frames, pxt.sprite.bitmapEquals);
             case "tilemap" /* Tilemap */:
                 return a.data.equals(b.data);
         }
@@ -18642,17 +18733,6 @@ var pxt;
             }
         }
         return id;
-    }
-    function arrayEquals(a, b, compare = (c, d) => c === d) {
-        if (a == b)
-            return true;
-        if (!a && b || !b && a || a.length !== b.length)
-            return false;
-        for (let i = 0; i < a.length; i++) {
-            if (!compare(a[i], b[i]))
-                return false;
-        }
-        return true;
     }
     function serializeTilemap(tilemap, id, name) {
         const tm = tilemap.tilemap.data();
@@ -21061,7 +21141,6 @@ var pxt;
         youtube.watchUrl = watchUrl;
     })(youtube = pxt.youtube || (pxt.youtube = {}));
 })(pxt || (pxt = {}));
-/* eslint-disable no-cond-assign */
 // TODO: add a macro facility to make 8-bit assembly easier?
 var ts;
 (function (ts) {
@@ -21319,7 +21398,7 @@ var ts;
                     // recursive-descent parsing of multiplication
                     if (s.indexOf("*") >= 0) {
                         let m = null;
-                        while (m = /^([^\*]*)\*(.*)$/.exec(s)) {
+                        while (null != (m = /^([^\*]*)\*(.*)$/.exec(s))) {
                             let tmp = this.parseOneInt(m[1]);
                             if (tmp == null)
                                 return null;
@@ -21933,6 +22012,37 @@ var ts;
                             pxtc.oops();
                         }
                     });
+                }
+                getSourceMap() {
+                    const sourceMap = {};
+                    let locFile = "";
+                    let locLn = 0;
+                    let locPos = 0;
+                    let locEnd = 0;
+                    this.lines.forEach((ln, i) => {
+                        const m = /^; ([\w\/\.-]+)\(([\d]+),\d+\):/.exec(ln.text);
+                        if (m) {
+                            flush();
+                            locFile = m[1];
+                            locLn = parseInt(m[2]);
+                        }
+                        if (ln.type == "instruction") {
+                            if (!locPos)
+                                locPos = ln.location;
+                            locEnd = ln.location;
+                        }
+                    });
+                    flush();
+                    function flush() {
+                        if (locFile && locPos) {
+                            if (!sourceMap[locFile])
+                                sourceMap[locFile] = [];
+                            sourceMap[locFile].push(locLn, locPos, locEnd - locPos);
+                        }
+                        locPos = 0;
+                        locEnd = 0;
+                    }
+                    return sourceMap;
                 }
                 getSource(clean, numStmts = 1, flashSize = 0) {
                     let lenPrev = 0;

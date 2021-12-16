@@ -10,6 +10,7 @@ interface AppState {
     alert?: AlertProps;
     asset: pxt.Asset;
     activeTab: pxt.AssetType;
+    mostRecentAssets: {[index: string]: string};
 }
 
 class App extends React.Component<{}, AppState> {
@@ -19,7 +20,8 @@ class App extends React.Component<{}, AppState> {
         super(props);
         this.state = {
             asset: this.getAssetForTab(AssetType.Image),
-            activeTab: AssetType.Image
+            activeTab: AssetType.Image,
+            mostRecentAssets: {}
         };
     }
 
@@ -124,6 +126,13 @@ class App extends React.Component<{}, AppState> {
             type: "open-asset",
             asset: this.state.asset
         });
+
+        this.setState({
+            mostRecentAssets: {
+                ...this.state.mostRecentAssets,
+                [this.state.asset.type]: this.state.asset.id
+            }
+        });
     }
 
     protected onAssetSave(asset: pxt.Asset) {
@@ -167,8 +176,13 @@ class App extends React.Component<{}, AppState> {
     }
 
     protected getAssetForTab(tab: pxt.AssetType) {
-        let asset: pxt.Asset;
         const project = getTilemapProject();
+        if (this.state?.mostRecentAssets?.[tab]) {
+            const mostRecent = project.lookupAsset(tab, this.state.mostRecentAssets[tab]);
+
+            if (mostRecent) return mostRecent;
+        }
+        let asset: pxt.Asset;
         switch (tab) {
             case AssetType.Image:
                 asset = project.getAssets(AssetType.Image)[0] || project.createNewImage(16, 16);

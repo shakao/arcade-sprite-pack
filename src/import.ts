@@ -1,4 +1,4 @@
-import { getProjectPalette, getTilemapProject } from "./project";
+import { AssetType, getProjectPalette, getTilemapProject } from "./project";
 import { ScriptMeta } from "./share";
 
 const backendEndpoint = "https://makecode.com/api";
@@ -66,9 +66,24 @@ function grabImagesFromTypeScript(fileText: string) {
 
     fileText.replace(literalRegex, match => {
         const bitmap = pxt.sprite.imageLiteralToBitmap(match);
-        project.createNewProjectImage(bitmap.data());
+        project.createNewProjectImage(bitmap.data(), getDefaultAssetDisplayName(AssetType.Image));
         return "";
     });
+}
+
+function getDefaultAssetDisplayName(type: pxt.AssetType): string {
+    switch (type) {
+        case AssetType.Image:
+            return lf("myImage");
+        case AssetType.Tile:
+            return lf("myTile");
+        case AssetType.Tilemap:
+            return lf("level");
+        case AssetType.Animation:
+            return lf("myAnim");
+        default:
+            return lf("asset")
+    }
 }
 
 function httpGetJSONAsync(url: string): Promise<any> {
