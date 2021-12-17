@@ -12,7 +12,7 @@ export interface AssetListProps {
 }
 
 export const AssetList = (props: AssetListProps) => {
-    const { activeTab, onAssetSelected } = props;
+    const { activeTab, asset, onAssetSelected } = props;
     const project = getTilemapProject();
 
     const assets = project.getAssets(activeTab);
@@ -60,7 +60,7 @@ export const AssetList = (props: AssetListProps) => {
         </div>
         <div className="asset-list-outer">
             <div className="asset-list">
-                { assets.map(a => <AssetPreview key={a.internalID} asset={a} onClick={onAssetSelected} />) }
+                { assets.map(a => <AssetPreview key={a.internalID} asset={a} selected={a.id == asset.id} onClick={onAssetSelected} />) }
                 <Button label="Create New" title="Create New Asset" onClick={createNewAsset} />
             </div>
         </div>
