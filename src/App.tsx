@@ -96,7 +96,7 @@ class App extends React.Component<{}, AppState> {
                         ref={this.handleIframeRef}
                         onMouseEnter={this.onMouseEnter}
                         title="MakeCode Arcade sprite editor"
-                        src="http://localhost:3232/asseteditor.html" />
+                        src="https://arcade.makecode.com/app/57fb94baabd6442f409966da3a7d122d31a96138-72a6fe3edf---asseteditor" />
                     <AssetSidebar showAlert={this.showAlert} asset={asset} activeTab={activeTab} onAssetSelected={this.onAssetSelected} />
                 </div>
                 { alert && <Alert {...alert} onClose={this.hideAlert} visible={true}/> }
