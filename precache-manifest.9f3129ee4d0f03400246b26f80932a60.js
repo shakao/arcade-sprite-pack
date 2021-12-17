@@ -1,6 +1,6 @@
 self.__precacheManifest = (self.__precacheManifest || []).concat([
   {
-    "revision": "857df00dc97adaad0ef553e3f1dd4567",
+    "revision": "8f2a413c73632ceab7ae2613446deff2",
     "url": "/arcade-sprite-pack/index.html"
   },
   {
