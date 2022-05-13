@@ -3,7 +3,7 @@ import { newTilemapProject } from "../project";
 import { AlertProps } from "./Alert";
 
 import '../styles/AssetActions.css';
-import { downloadProjectAsync } from "../export";
+import { downloadProjectAsync, downloadScaledSprites } from "../export";
 import { importScriptAsync } from "../import";
 
 
@@ -19,7 +19,7 @@ export const AssetActions = (props: AssetActionsProps) => {
     <div className="asset-button" title="Import assets" onClick={() => onImportButtonClick(props)}>
         <i className="icon upload"></i>
     </div>
-    <div className="asset-button" title="Export assets" onClick={onExportButtonClick}>
+    <div className="asset-button" title="Export assets" onClick={() => onExportButtonClick(props)}>
         <i className="icon download"></i>
     </div>
 </div>
@@ -74,6 +74,37 @@ function onImportButtonClick(props: AssetActionsProps) {
     });
 }
 
-function onExportButtonClick() {
-    downloadProjectAsync("project");
+function onExportButtonClick(props: AssetActionsProps) {
+    const { showAlert } = props;
+    showAlert({
+        icon: "download",
+        title: "Export",
+        text: "Choose export method",
+        options: [{
+                text: "Export .mkcd file",
+                onClick: (input) => {
+                    downloadProjectAsync("project");
+                }
+            },
+            {
+                text: "Export PNGs",
+                onClick: (input) => {
+                    setTimeout(() => {
+                        showAlert({
+                            type: "scale",
+                            icon: "download",
+                            title: "Export PNGs",
+                            text: "Enter scale factor",
+                            options: [
+                                {
+                                    text: "Export",
+                                    onClick: (input) => {
+                                        if (input) downloadScaledSprites(parseInt(input));
+                                    }
+                                }]
+                        });
+                    }, 100)
+                }
+            }]
+    });
 }

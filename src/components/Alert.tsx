@@ -62,6 +62,9 @@ export class Alert extends React.Component<AlertProps, AlertState> {
                     </div>
                     <input ref={this.handleImportInputRef} placeholder="https://makecode.com/_r8fboJQTDPtH or https://arcade.makeode.com/62736-71128-62577-28722" />
                 </div>}
+                {type === "scale" && <div className="asset-import">
+                    <input ref={this.handleImportInputRef} placeholder="1" />
+                </div>}
                 {options && <div className="alert-options">
                     {options.map((el, i) => {
                         const onClick = () => {

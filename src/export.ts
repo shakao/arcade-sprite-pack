@@ -1,9 +1,9 @@
 import { AssetInfo, Asset } from "./components/Asset";
 import { lzmaCompressAsync } from "./lzma";
 import { JRes } from "./share";
-import { escapeIdentifier, IMAGE_MIME_TYPE, browserDownloadUInt8Array, browserDownloadText } from "./util";
+import { escapeIdentifier, IMAGE_MIME_TYPE, browserDownloadUInt8Array, browserDownloadText, browserDownloadDataUri } from "./util";
 import { imgEncodeJRESImage } from "./images";
-import { getTilemapProject } from "./project";
+import { AssetType, getProjectPalette, getTilemapProject } from "./project";
 
 
 interface PXTHexFile {
@@ -184,6 +184,53 @@ function createProjectBlobAsync(name: string) {
 export async function downloadProjectAsync(name: string) {
     const blob = await createProjectBlobAsync(name);
     return browserDownloadUInt8Array(blob, name + ".mkcd");
+}
+
+
+export async function downloadScaledSprites(scaleFactor: number) {
+    const project = getTilemapProject();
+
+    const allBitmaps: pxt.sprite.Bitmap[] = [];
+
+    for (const asset of project.getAssets(AssetType.Image)) {
+        allBitmaps.push(pxt.sprite.Bitmap.fromData((asset as pxt.ProjectImage).bitmap));
+    }
+    for (const asset of project.getAssets(AssetType.Tile)) {
+        allBitmaps.push(pxt.sprite.Bitmap.fromData((asset as pxt.Tile).bitmap));
+    }
+    for (const asset of project.getAssets(AssetType.Animation)) {
+        allBitmaps.push(...(asset as pxt.Animation).frames.map(frame => pxt.sprite.Bitmap.fromData(frame)));
+    }
+
+    const renderCanvas: HTMLCanvasElement = document.createElement("canvas");
+
+    const palette = getProjectPalette();
+
+    const output: string[] = [];
+    for (const bitmap of allBitmaps) {
+        renderCanvas.width = bitmap.width * scaleFactor;
+        renderCanvas.height = bitmap.height * scaleFactor;
+        const context = renderCanvas.getContext("2d");
+
+        for (let x = 0; x < bitmap.width; x++) {
+            for (let y = 0; y < bitmap.height; y++) {
+                const pixel = bitmap.get(x, y);
+                if (pixel) {
+                    context!.fillStyle = palette[pixel];
+                    context!.fillRect(x * scaleFactor, y * scaleFactor, scaleFactor, scaleFactor);
+                }
+                else {
+                    context!.clearRect(x * scaleFactor, y * scaleFactor, scaleFactor, scaleFactor)
+                }
+            }
+        }
+
+        output.push(renderCanvas.toDataURL());
+    }
+
+    for (let i = 0; i < output.length; i++) {
+        browserDownloadDataUri(output[i], "image" + i + ".png")
+    }
 }
 
 
