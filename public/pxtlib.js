@@ -2213,6 +2213,7 @@ var ts;
                 "bn": { englishName: "Bengali", localizedName: "বাংলা" },
                 "ca": { englishName: "Catalan", localizedName: "Català" },
                 "cs": { englishName: "Czech", localizedName: "Čeština" },
+                "cy": { englishName: "Welsh", localizedName: "Cymraeg" },
                 "da": { englishName: "Danish", localizedName: "Dansk" },
                 "de": { englishName: "German", localizedName: "Deutsch" },
                 "el": { englishName: "Greek", localizedName: "Ελληνικά" },
@@ -3759,7 +3760,7 @@ var pxt;
         // The JS Math functions supported in the blocks. The order of this array
         // determines the order of the dropdown in the math_js_op block
         blocks.MATH_FUNCTIONS = {
-            unary: ["sqrt", "sin", "cos", "tan"],
+            unary: ["sqrt", "sin", "cos", "tan", "asin", "acos"],
             binary: ["atan2"],
             infix: ["idiv", "imul"]
         };
@@ -3831,6 +3832,7 @@ var pxt;
                     shadowBlockId: def.shadowBlockId,
                     type: fn.namespace,
                     defaultValue: defaultValue,
+                    definitionIndex: defParameters.indexOf(def),
                     // Normally we pass ths actual parameter name, but the "this" parameter doesn't have one
                     fieldEditor: fieldEditor(defName, THIS_NAME),
                     fieldOptions: fieldOptions(defName, THIS_NAME),
@@ -3860,6 +3862,7 @@ var pxt;
                             type: p.type,
                             defaultValue: isVarOrArray ? (def.varName || p.default) : p.default,
                             definitionName: defName,
+                            definitionIndex: def ? defParameters.indexOf(def) : i,
                             shadowBlockId: def && def.shadowBlockId,
                             isOptional: defParameters ? defParameters.indexOf(def) >= optionalStart : false,
                             fieldEditor: fieldEditor(defName, p.name),
@@ -3908,6 +3911,25 @@ var pxt;
             });
         }
         blocks.hasHandler = hasHandler;
+        function getHelpUrl(fn) {
+            if (fn.attributes.help) {
+                const helpUrl = fn.attributes.help.replace(/^\//, '');
+                if (/^github:/.test(helpUrl)) {
+                    return helpUrl;
+                }
+                else if (helpUrl !== "none") {
+                    return "/reference/" + helpUrl;
+                }
+            }
+            else if (fn.pkg && !pxt.appTarget.bundledpkgs[fn.pkg]) { // added package
+                let anchor = fn.qName.toLowerCase().split('.');
+                if (anchor[0] == fn.pkg)
+                    anchor.shift();
+                return `/pkg/${fn.pkg}#${encodeURIComponent(anchor.join('-'))}`;
+            }
+            return undefined;
+        }
+        blocks.getHelpUrl = getHelpUrl;
         /**
          * Returns which Blockly block type to use for an argument reporter based
          * on the specified TypeScript type.
@@ -3918,6 +3940,9 @@ var pxt;
             let reporterType = "argument_reporter_custom";
             if (varType === "boolean" || varType === "number" || varType === "string") {
                 reporterType = `argument_reporter_${varType}`;
+            }
+            if (/^(?:Array<(?:.+)>)|(?:(?:.+)\[\])$/.test(varType)) {
+                reporterType = "argument_reporter_array";
             }
             return reporterType;
         }
@@ -4104,6 +4129,8 @@ var pxt;
                         "sqrt": pxt.Util.lf("Returns the square root of the argument"),
                         "sin": pxt.Util.lf("Returns the sine of the argument"),
                         "cos": pxt.Util.lf("Returns the cosine of the argument"),
+                        "acos": pxt.Util.lf("Returns the arccosine of the argument"),
+                        "asine": pxt.Util.lf("Returns the arcsine of the argument"),
                         "tan": pxt.Util.lf("Returns the tangent of the argument"),
                         "atan2": pxt.Util.lf("Returns the arctangent of the quotient of the two arguments"),
                         "idiv": pxt.Util.lf("Returns the integer portion of the division operation on the two arguments"),
@@ -4118,6 +4145,8 @@ var pxt;
                         "sqrt": pxt.Util.lf("{id:op}square root"),
                         "sin": pxt.Util.lf("{id:op}sin"),
                         "cos": pxt.Util.lf("{id:op}cos"),
+                        "asin": pxt.Util.lf("{id:op}asin"),
+                        "acos": pxt.Util.lf("{id:op}acos"),
                         "tan": pxt.Util.lf("{id:op}tan"),
                         "atan2": pxt.Util.lf("{id:op}atan2"),
                         "idiv": pxt.Util.lf("{id:op}integer ÷"),
@@ -4436,6 +4465,10 @@ var pxt;
 (function (pxt) {
     var BrowserUtils;
     (function (BrowserUtils) {
+        function isDocumentVisible() {
+            return typeof window !== "undefined" && document.visibilityState === 'visible';
+        }
+        BrowserUtils.isDocumentVisible = isDocumentVisible;
         function isIFrame() {
             try {
                 return window && window.self !== window.top;
@@ -4625,6 +4658,9 @@ var pxt;
         }
         BrowserUtils.noSharedLocalStorage = noSharedLocalStorage;
         function useOldTutorialLayout() {
+            var _a, _b;
+            if ((_b = (_a = pxt.appTarget) === null || _a === void 0 ? void 0 : _a.appTheme) === null || _b === void 0 ? void 0 : _b.legacyTutorial)
+                return true;
             try {
                 return (/tutorialview=old/.test(window.location.href));
             }
@@ -5652,7 +5688,9 @@ var pxt;
                 const height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
                 const left = ((width / 2) - (popUpWidth / 2)) + winLeft;
                 const top = ((height / 2) - (popUpHeight / 2)) + winTop;
-                const popupWindow = window.open(url, title, "width=" + popUpWidth + ", height=" + popUpHeight + ", top=" + top + ", left=" + left);
+                const features = "width=" + popUpWidth + ", height=" + popUpHeight + ", top=" + top + ", left=" + left;
+                // Current CEF version does not like when features parameter is passed and just immediately rejects.
+                const popupWindow = window.open(url, title, !pxt.BrowserUtils.isIpcRenderer() ? features : undefined);
                 if (popupWindow.focus) {
                     popupWindow.focus();
                 }
@@ -5660,7 +5698,7 @@ var pxt;
             }
             catch (e) {
                 // Error opening popup
-                pxt.tickEvent('pxt.popupError', { url: url, msg: e.message });
+                pxt.tickEvent('pxt.popupError', { msg: e.message });
                 return null;
             }
         }
@@ -5738,6 +5776,19 @@ var pxt;
             return `${url}${url.indexOf('?') > 0 ? "&" : "?"}rnd=${Math.random()}`;
         }
         BrowserUtils.cacheBustingUrl = cacheBustingUrl;
+        function legacyCopyText(element) {
+            element.focus();
+            element.setSelectionRange(0, 9999);
+            try {
+                const success = document.execCommand("copy");
+                pxt.debug('copy: ' + success);
+                return !!success;
+            }
+            catch (e) {
+                return false;
+            }
+        }
+        BrowserUtils.legacyCopyText = legacyCopyText;
     })(BrowserUtils = pxt.BrowserUtils || (pxt.BrowserUtils = {}));
 })(pxt || (pxt = {}));
 var pxt;
@@ -6783,6 +6834,7 @@ var pxt;
                 });
                 res.generatedFiles["/codal.json"] = JSON.stringify(codalJson, null, 4) + "\n";
                 pxt.debug(`codal.json: ${res.generatedFiles["/codal.json"]}`);
+                res.codal = codalJson;
             }
             else if (isPlatformio) {
                 const iniLines = compileService.platformioIni.slice();
@@ -8661,13 +8713,43 @@ var pxt;
         docs.prepTemplate = prepTemplate;
         function setupRenderer(renderer) {
             renderer.image = function (href, title, text) {
-                let out = '<img class="ui image" src="' + href + '" alt="' + text + '"';
-                if (title) {
-                    out += ' title="' + title + '"';
+                var _a, _b;
+                const endpointName = "makecodeprodmediaeastus-usea";
+                if (href.startsWith("youtube:")) {
+                    let out = '<div class="tutorial-video-embed"><iframe class="yt-embed" src="https://www.youtube.com/embed/' + href.split(":").pop()
+                        + '" title="' + text + '" frameborder="0" ' + 'allowFullScreen ' + 'allow="autoplay; picture-in-picture"></iframe></div>';
+                    return out;
                 }
-                out += ' loading="lazy"';
-                out += this.options.xhtml ? '/>' : '>';
-                return out;
+                else if (href.startsWith("azuremedia:")) {
+                    let videoID = href.split(":")[1];
+                    const flagsSplit = videoID.split("?");
+                    let startTime;
+                    let endTime;
+                    if (flagsSplit[1]) {
+                        videoID = flagsSplit[0];
+                        const passedParameters = flagsSplit[1];
+                        startTime = (_a = /start(?:time)?=(\d+)/i.exec(passedParameters)) === null || _a === void 0 ? void 0 : _a[1];
+                        endTime = (_b = /end(?:time)?=(\d+)/i.exec(passedParameters)) === null || _b === void 0 ? void 0 : _b[1];
+                    }
+                    const url = new URL(`https://${endpointName}.streaming.media.azure.net/${videoID}/manifest(format=mpd-time-csf).mpd`);
+                    if (startTime) {
+                        url.hash = `t=${startTime}`;
+                    }
+                    if (endTime) {
+                        url.searchParams.append("endTime", endTime);
+                    }
+                    let out = `<div class="tutorial-video-embed"><video class="ams-embed" controls src="${url.toString()}" /></div>`;
+                    return out;
+                }
+                else {
+                    let out = '<img class="ui image" src="' + href + '" alt="' + text + '"';
+                    if (title) {
+                        out += ' title="' + title + '"';
+                    }
+                    out += ' loading="lazy"';
+                    out += this.options.xhtml ? '/>' : '>';
+                    return out;
+                }
             };
             renderer.listitem = function (text) {
                 const m = /^\s*\[( |x)\]/i.exec(text);
@@ -8682,16 +8764,15 @@ var pxt;
                     text = m[1];
                     id = m[2];
                 }
-                else {
-                    id = raw.toLowerCase().replace(/[^\w]+/g, '-');
-                }
                 // remove tutorial macros
                 if (text)
                     text = text.replace(/@(fullscreen|unplugged|showdialog|showhint)/gi, '');
-                text = text.trim();
                 // remove brackets for hiding step title
-                if (text.match(/^\{([\s\S]+)\}$/))
-                    text = text.substr(1, text.length - 2);
+                if (text.match(/\{([\s\S]+)\}/))
+                    text = text.match(/\{([\s\S]+)\}/)[1].trim();
+                if (id === "") {
+                    id = text.toLowerCase().replace(/[^\w]+/g, '-');
+                }
                 return `<h${level} id="${this.options.headerPrefix}${id}">${text}</h${level}>`;
             };
         }
@@ -9827,6 +9908,7 @@ var pxt;
         github.isOrgAsync = isOrgAsync;
         class MemoryGithubDb {
             constructor() {
+                this.latestVersions = {};
                 this.configs = {};
                 this.packages = {};
             }
@@ -9849,8 +9931,10 @@ var pxt;
                 return pxt.U.clone(cfg);
             }
             async loadConfigAsync(repopath, tag) {
-                if (!tag)
+                if (!tag) {
+                    pxt.debug(`dep: default to master branch`);
                     tag = "master";
+                }
                 // cache lookup
                 const key = `${repopath}/${tag}`;
                 let res = this.configs[key];
@@ -9873,9 +9957,19 @@ var pxt;
                 const cfg = await downloadTextAsync(repopath, tag, pxt.CONFIG_NAME);
                 return this.cacheConfig(key, cfg);
             }
+            async latestVersionAsync(repopath, config) {
+                let resolved = this.latestVersions[repopath];
+                if (!resolved) {
+                    pxt.debug(`dep: resolve latest version of ${repopath}`);
+                    this.latestVersions[repopath] = resolved = await pxt.github.latestVersionAsync(repopath, config, true, false);
+                }
+                return resolved;
+            }
             async loadPackageAsync(repopath, tag) {
-                if (!tag)
+                if (!tag) {
+                    pxt.debug(`load pkg: default to master branch`);
                     tag = "master";
+                }
                 // try using github proxy first
                 if (hasProxy()) {
                     try {
@@ -10191,44 +10285,48 @@ var pxt;
                 .then(resolveRefAsync, e => ghGetJsonAsync(`https://api.github.com/repos/${parsed.slug}/git/refs/heads/${tag}`)
                 .then(resolveRefAsync));
         }
-        function pkgConfigAsync(repopath, tag = "master") {
-            return github.db.loadConfigAsync(repopath, tag);
+        async function pkgConfigAsync(repopath, tag, config) {
+            if (!tag)
+                tag = await github.db.latestVersionAsync(repopath, config);
+            return await github.db.loadConfigAsync(repopath, tag);
         }
         github.pkgConfigAsync = pkgConfigAsync;
-        function downloadPackageAsync(repoWithTag, config) {
+        async function downloadPackageAsync(repoWithTag, config) {
             const p = parseRepoId(repoWithTag);
             if (!p) {
                 pxt.log('Unknown GitHub syntax');
-                return Promise.resolve(undefined);
+                return undefined;
             }
             if (isRepoBanned(p, config)) {
                 pxt.tickEvent("github.download.banned");
                 pxt.log('Github repo is banned');
-                return Promise.resolve(undefined);
+                return undefined;
             }
-            return github.db.loadPackageAsync(p.fullName, p.tag)
-                .then(cached => {
-                const dv = upgradedDisablesVariants(config, repoWithTag);
-                if (dv) {
-                    const cfg = pxt.Package.parseAndValidConfig(cached.files[pxt.CONFIG_NAME]);
-                    if (cfg) {
-                        pxt.log(`auto-disable ${dv.join(",")} due to targetconfig entry for ${repoWithTag}`);
-                        cfg.disablesVariants = dv;
-                        cached.files[pxt.CONFIG_NAME] = pxt.Package.stringifyConfig(cfg);
-                    }
+            // always try to upgrade unbound versions
+            if (!p.tag) {
+                p.tag = await github.db.latestVersionAsync(p.slug, config);
+            }
+            const cached = await github.db.loadPackageAsync(p.fullName, p.tag);
+            const dv = upgradedDisablesVariants(config, repoWithTag);
+            if (dv) {
+                const cfg = pxt.Package.parseAndValidConfig(cached.files[pxt.CONFIG_NAME]);
+                if (cfg) {
+                    pxt.log(`auto-disable ${dv.join(",")} due to targetconfig entry for ${repoWithTag}`);
+                    cfg.disablesVariants = dv;
+                    cached.files[pxt.CONFIG_NAME] = pxt.Package.stringifyConfig(cfg);
                 }
-                return cached;
-            });
+            }
+            return cached;
         }
         github.downloadPackageAsync = downloadPackageAsync;
-        async function downloadLatestPackageAsync(repo) {
+        async function downloadLatestPackageAsync(repo, useProxy, noCache) {
             const packageConfig = await pxt.packagesConfigAsync();
-            const tag = await pxt.github.latestVersionAsync(repo.slug, packageConfig);
+            const tag = await pxt.github.latestVersionAsync(repo.slug, packageConfig, useProxy, noCache);
             // download package into cache
             const repoWithTag = `${repo.fullName}#${tag}`;
             await pxt.github.downloadPackageAsync(repoWithTag, packageConfig);
             // return config
-            const config = await pkgConfigAsync(repo.fullName, tag);
+            const config = await pkgConfigAsync(repo.fullName, tag, packageConfig);
             const version = `github:${repoWithTag}`;
             return { version, config };
         }
@@ -10255,6 +10353,12 @@ var pxt;
             GitRepoStatus[GitRepoStatus["Approved"] = 1] = "Approved";
             GitRepoStatus[GitRepoStatus["Banned"] = 2] = "Banned";
         })(GitRepoStatus = github.GitRepoStatus || (github.GitRepoStatus = {}));
+        function isDefaultBranch(branch, repo) {
+            if (repo && repo.defaultBranch)
+                return branch === repo.defaultBranch;
+            return /^(main|master)$/.test(branch);
+        }
+        github.isDefaultBranch = isDefaultBranch;
         function listUserReposAsync() {
             const q = `{
   viewer {
@@ -10272,12 +10376,12 @@ var pxt;
         defaultBranchRef {
           name
         }
-        pxtjson: object(expression: "master:pxt.json") {
+        pxtjson: object(expression: "HEAD:pxt.json") {
           ... on Blob {
             text
           }
         }
-        readme: object(expression: "master:README.md") {
+        readme: object(expression: "HEAD:README.md") {
           ... on Blob {
             text
           }
@@ -10414,14 +10518,17 @@ var pxt;
             return false;
         }
         function isRepoBanned(repo, config) {
+            var _a, _b;
             if (isOrgBanned(repo, config))
                 return true;
             if (!config)
                 return false; // don't know
-            if (!repo || !repo.fullName)
+            if (!repo)
                 return true;
+            const repoFull = (_a = repo.fullName) === null || _a === void 0 ? void 0 : _a.toLowerCase();
+            const repoSlug = (_b = repo.slug) === null || _b === void 0 ? void 0 : _b.toLowerCase();
             if (config.bannedRepos
-                && config.bannedRepos.some(fn => fn.toLowerCase() == repo.fullName.toLowerCase()))
+                && config.bannedRepos.some(fn => fn && (fn.toLowerCase() == repoFull || fn.toLowerCase() == repoSlug)))
                 return true;
             return false;
         }
@@ -10435,13 +10542,15 @@ var pxt;
             return false;
         }
         function isRepoApproved(repo, config) {
+            var _a, _b;
             if (isOrgApproved(repo, config))
                 return true;
-            if (!repo || !config)
+            const repoFull = (_a = repo === null || repo === void 0 ? void 0 : repo.fullName) === null || _a === void 0 ? void 0 : _a.toLowerCase();
+            const repoSlug = (_b = repo === null || repo === void 0 ? void 0 : repo.slug) === null || _b === void 0 ? void 0 : _b.toLowerCase();
+            if (!(config === null || config === void 0 ? void 0 : config.approvedRepoLib) || !(repoFull || repoSlug))
                 return false;
-            if (repo.fullName
-                && config.approvedRepos
-                && config.approvedRepos.some(fn => fn.toLowerCase() == repo.fullName.toLowerCase()))
+            if (config.approvedRepoLib[repoFull]
+                || config.approvedRepoLib[repoSlug])
                 return true;
             return false;
         }
@@ -10557,15 +10666,16 @@ var pxt;
             return id.slice(0, 7) == "github:";
         }
         github.isGithubId = isGithubId;
-        function stringifyRepo(p) {
-            return p ? "github:" + p.fullName.toLowerCase() + "#" + (p.tag || "master") : undefined;
+        function stringifyRepo(p, ignoreCase = false) {
+            return p ? "github:" + (ignoreCase ? p.fullName : p.fullName.toLowerCase()) + (p.tag ? `#${p.tag}` : '') : undefined;
         }
         github.stringifyRepo = stringifyRepo;
-        function normalizeRepoId(id) {
+        function normalizeRepoId(id, defaultTag) {
             const gid = parseRepoId(id);
             if (!gid)
                 return undefined;
-            gid.tag = gid.tag || "master";
+            if (!gid.tag && defaultTag)
+                gid.tag = defaultTag;
             return stringifyRepo(gid);
         }
         github.normalizeRepoId = normalizeRepoId;
@@ -10573,49 +10683,59 @@ var pxt;
             return parts.filter(p => !!p).join('/');
         }
         github.join = join;
-        function upgradeRule(cfg, id) {
-            if (!cfg || !cfg.upgrades)
+        function upgradeRules(cfg, id) {
+            var _a;
+            if (!cfg)
                 return null;
             const parsed = parseRepoId(id);
             if (!parsed)
                 return null;
-            return pxt.U.lookup(cfg.upgrades, parsed.fullName.toLowerCase());
+            const repoData = cfg.approvedRepoLib;
+            // lookup base repo for upgrade rules
+            // (since nested repoes share the same version number)
+            return cfg.approvedRepoLib && ((_a = pxt.U.lookup(cfg.approvedRepoLib, parsed.slug.toLowerCase())) === null || _a === void 0 ? void 0 : _a.upgrades);
         }
         function upgradedDisablesVariants(cfg, id) {
-            const upgr = upgradeRule(cfg, id);
-            const m = /^dv:(.*)/.exec(upgr);
-            if (m) {
-                const disabled = m[1].split(/,/);
-                if (disabled.some(d => !/^\w+$/.test(d)))
-                    return null;
-                return disabled;
+            const rules = upgradeRules(cfg, id) || [];
+            if (!rules)
+                return null;
+            for (const upgr of rules) {
+                const m = /^dv:(.*)/.exec(upgr);
+                if (m) {
+                    const disabled = m[1].split(/,/);
+                    if (disabled.some(d => !/^\w+$/.test(d)))
+                        return null;
+                    return disabled;
+                }
             }
             return null;
         }
         function upgradedPackageReference(cfg, id) {
-            const upgr = upgradeRule(cfg, id);
-            if (!upgr)
+            const rules = upgradeRules(cfg, id);
+            if (!rules)
                 return null;
-            const m = /^min:(.*)/.exec(upgr);
-            const minV = m && pxt.semver.tryParse(m[1]);
-            if (minV) {
-                const parsed = parseRepoId(id);
-                const currV = pxt.semver.tryParse(parsed.tag);
-                if (currV && pxt.semver.cmp(currV, minV) < 0) {
-                    parsed.tag = m[1];
-                    pxt.debug(`upgrading ${id} to ${m[1]}`);
-                    return stringifyRepo(parsed);
+            for (const upgr of rules) {
+                const m = /^min:(.*)/.exec(upgr);
+                const minV = m && pxt.semver.tryParse(m[1]);
+                if (minV) {
+                    const parsed = parseRepoId(id);
+                    const currV = pxt.semver.tryParse(parsed.tag);
+                    if (currV && pxt.semver.cmp(currV, minV) < 0) {
+                        parsed.tag = m[1];
+                        pxt.debug(`upgrading ${id} to ${m[1]}`);
+                        return stringifyRepo(parsed);
+                    }
+                    else {
+                        if (!currV)
+                            pxt.log(`not upgrading ${id} - cannot parse version`);
+                        return null;
+                    }
                 }
                 else {
-                    if (!currV)
-                        pxt.log(`not upgrading ${id} - cannot parse version`);
-                    return null;
+                    // check if the rule looks valid at all
+                    if (!upgradedDisablesVariants(cfg, id))
+                        pxt.log(`invalid upgrade rule: ${id} -> ${upgr}`);
                 }
-            }
-            else {
-                // check if the rule looks valid at all
-                if (!upgradedDisablesVariants(cfg, id))
-                    pxt.log(`invalid upgrade rule: ${id} -> ${upgr}`);
             }
             return id;
         }
@@ -10946,6 +11066,7 @@ var pxt;
             constructor(io) {
                 var _a;
                 this.io = io;
+                this.initialized = false;
                 this.cmdSeq = pxt.U.randomUint32();
                 this.lock = new pxt.U.PromiseQueue();
                 this.flashing = false;
@@ -10960,6 +11081,7 @@ var pxt;
                 this.jacdacAvailable = false;
                 this.onSerial = (buf, isStderr) => { };
                 this.onCustomEvent = (type, payload) => { };
+                this.onConnectionChanged = () => { };
                 let frames = [];
                 io.onDeviceConnectionChanged = connect => this.disconnectAsync()
                     .then(() => connect && this.reconnectAsync());
@@ -11027,6 +11149,7 @@ var pxt;
                 });
             }
             resetState() {
+                this.initialized = false;
                 this.lock = new pxt.U.PromiseQueue();
                 this.info = null;
                 this.infoRaw = null;
@@ -11048,6 +11171,12 @@ var pxt;
                     else
                         return Promise.resolve(); // ignore
                 return Promise.reject(new Error("invalid custom event type"));
+            }
+            isConnected() {
+                return this.io.isConnected() && this.initialized;
+            }
+            isConnecting() {
+                return this.io.isConnecting() || (this.io.isConnected() && !this.initialized);
             }
             reconnectAsync() {
                 this.resetState();
@@ -11257,8 +11386,10 @@ var pxt;
                     .then(() => { });
             }
             initAsync() {
-                if (this.rawMode)
+                if (this.rawMode) {
+                    this.initialized = true;
                     return Promise.resolve();
+                }
                 return Promise.resolve()
                     .then(() => this.talkAsync(HF2.HF2_CMD_BININFO))
                     .then(binfo => {
@@ -11292,13 +11423,16 @@ var pxt;
                         };
                     log(`Board-ID: ${this.info.BoardID} v${this.info.Parsed.Version} f${this.info.Parsed.Features}`);
                 })
-                    .then(() => this.talkAsync(HF2.HF2_CMD_JDS_CONFIG, new Uint8Array([1])).then(() => {
+                    .then(() => this.talkAsync(HF2.HF2_CMD_JDS_CONFIG, new Uint8Array([1]))
+                    .then(() => {
                     this.jacdacAvailable = true;
                 }, _err => {
                     this.jacdacAvailable = false;
                 }))
                     .then(() => {
                     this.reconnectTries = 0;
+                    this.initialized = true;
+                    this.io.onConnectionChanged();
                 });
             }
         }
@@ -11962,105 +12096,6 @@ _site
         "**/pxt_modules": true
     }
 }`,
-                ".github/workflows/makecode.yml": `name: MakeCode
-
-on: [push]
-
-jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [14.x]
-
-    steps:
-      - uses: actions/checkout@v1
-      - name: Use Node.js $\{{ matrix.node-version }}
-        uses: actions/setup-node@v1
-        with:
-          node-version: $\{{ matrix.node-version }}
-      - name: npm install
-        run: |
-          npm install -g pxt
-          pxt target @TARGET@
-      - name: build
-        run: |
-          pxt install
-          pxt build --cloud
-        env:
-          CI: true
-`,
-                ".github/workflows/cfg-check.yml": `name: Check pxt.json
-
-on:
-  push:
-    branches:
-      - 'master'
-      - 'main'
-
-jobs:
-  check-cfg:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [14.x]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Use Node.js $\{{ matrix.node-version }}
-        uses: actions/setup-node@v1
-        with:
-          node-version: $\{{ matrix.node-version }}
-      - name: npm install
-        run: |
-          npm install -g pxt
-          pxt target @TARGET@
-      - name: Checkout current state
-        run: |
-          git checkout -- .
-          git clean -fd
-      - name: Fix files listed in config if necessary
-        run: pxt checkpkgcfg
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v3
-        continue-on-error: true
-        with:
-          title: 'Removing missing files from pxt.json'
-          commit-message: 'Removing missing files from pxt.json'
-          delete-branch: true
-`,
-                ".vscode/tasks.json": `
-// A task runner that calls the MakeCode (PXT) compiler
-{
-    "version": "2.0.0",
-    "tasks": [{
-        "label": "pxt deploy",
-        "type": "shell",
-        "command": "pxt deploy --local",
-        "group": "build",
-        "problemMatcher": [ "$tsc" ]
-    }, {
-        "label": "pxt build",
-        "type": "shell",
-        "command": "pxt build --local",
-        "group": "build",
-        "problemMatcher": [ "$tsc" ]
-    }, {
-        "label": "pxt install",
-        "type": "shell",
-        "command": "pxt install",
-        "group": "build",
-        "problemMatcher": [ "$tsc" ]
-    }, {
-        "label": "pxt clean",
-        "type": "shell",
-        "command": "pxt clean",
-        "group": "test",
-        "problemMatcher": [ "$tsc" ]
-    }]
-}
-`
             };
             // override files from target
             const overrides = targetTemplateFiles();
@@ -13707,22 +13742,20 @@ var pxt;
                 && json.dependencies && Object.keys(json.dependencies).every(k => typeof json.dependencies[k] === "string")
                 && json;
         }
-        static getConfigAsync(pkgTargetVersion, id, fullVers) {
-            return Promise.resolve().then(() => {
-                if (pxt.github.isGithubId(fullVers)) {
-                    const repoInfo = pxt.github.parseRepoId(fullVers);
-                    return pxt.packagesConfigAsync()
-                        .then(config => pxt.github.repoAsync(repoInfo.fullName, config)) // Make sure repo exists and is whitelisted
-                        .then(gitRepo => gitRepo ? pxt.github.pkgConfigAsync(repoInfo.fullName, repoInfo.tag) : null);
-                }
-                else {
-                    // If it's not from GH, assume it's a bundled package
-                    // TODO: Add logic for shared packages if we enable that
-                    const updatedRef = pxt.patching.upgradePackageReference(pkgTargetVersion, id, fullVers);
-                    const bundledPkg = pxt.appTarget.bundledpkgs[updatedRef];
-                    return JSON.parse(bundledPkg[pxt.CONFIG_NAME]);
-                }
-            });
+        static async getConfigAsync(pkgTargetVersion, id, fullVers) {
+            if (pxt.github.isGithubId(fullVers)) {
+                const repoInfo = pxt.github.parseRepoId(fullVers);
+                const packagesConfig = await pxt.packagesConfigAsync();
+                const gitRepo = await pxt.github.repoAsync(repoInfo.fullName, packagesConfig); // Make sure repo exists and is whitelisted
+                return gitRepo ? await pxt.github.pkgConfigAsync(repoInfo.fullName, repoInfo.tag, packagesConfig) : null;
+            }
+            else {
+                // If it's not from GH, assume it's a bundled package
+                // TODO: Add logic for shared packages if we enable that
+                const updatedRef = pxt.patching.upgradePackageReference(pkgTargetVersion, id, fullVers);
+                const bundledPkg = pxt.appTarget.bundledpkgs[updatedRef];
+                return JSON.parse(bundledPkg[pxt.CONFIG_NAME]);
+            }
         }
         static corePackages() {
             const pkgs = pxt.appTarget.bundledpkgs;
@@ -14041,7 +14074,7 @@ var pxt;
                                 // if newversion does not have tag, it's ok
                                 // note: we are upgrade major versions as well
                                 || (ghNew.tag && pxt.semver.strcmp(ghCurrent.tag, ghNew.tag) < 0)) {
-                                const conflict = new pxt.cpp.PkgConflictError(lf("version mismatch for extension {0} (installed: {1}, installing: {2})", depPkg.id, depPkg._verspec, version));
+                                const conflict = new pxt.cpp.PkgConflictError(lf("version mismatch for extension {0} (added: {1}, adding: {2})", depPkg.id, depPkg._verspec, version));
                                 conflict.pkg0 = depPkg;
                                 conflict.isVersionConflict = true;
                                 conflicts.push(conflict);
@@ -14074,7 +14107,7 @@ var pxt;
                 conflicts.forEach((c) => {
                     additionalConflicts.push.apply(additionalConflicts, allAncestors(c.pkg0).map((anc) => {
                         const confl = new pxt.cpp.PkgConflictError(c.isVersionConflict ?
-                            lf("a dependency of {0} has a version mismatch with extension {1} (installed: {1}, installing: {2})", anc.id, pkgCfg.name, c.pkg0._verspec, version) :
+                            lf("a dependency of {0} has a version mismatch with extension {1} (added: {1}, adding: {2})", anc.id, pkgCfg.name, c.pkg0._verspec, version) :
                             lf("conflict on yotta setting {0} between extensions {1} and {2}", c.settingName, pkgCfg.name, c.pkg0.id));
                         confl.pkg0 = anc;
                         return confl;
@@ -14259,15 +14292,22 @@ var pxt;
                         // this may be an issue if the user does not create releases
                         // and pulls from master
                         const modtag = (modid === null || modid === void 0 ? void 0 : modid.tag) || ((_a = mod.config) === null || _a === void 0 ? void 0 : _a.version);
+                        const vertag = verid.tag;
+                        // if there is no tag on the current dependency,
+                        // assume same as existing module version if any
+                        if (modtag && !vertag) {
+                            pxt.debug(`unversioned ${ver}, using ${modtag}`);
+                            return;
+                        }
                         const c = pxt.semver.strcmp(modtag, verid.tag);
                         if (c == 0) {
                             // turns out to be the same versions
                             pxt.debug(`resolved version are ${modtag}`);
                             return;
                         }
-                        else if (c < 0) {
-                            // already loaded version of dependencies is greater
-                            // than current version, use it instead
+                        else if (c > 0) {
+                            // already loaded version of dependencies (modtag) is greater
+                            // than current version (ver), use it instead
                             pxt.debug(`auto-upgraded ${ver} to ${modtag}`);
                             return;
                         }
@@ -14293,6 +14333,28 @@ var pxt;
                     pxt.debug(`dep: load ${from.id}.${id}${isCpp ? "++" : ""}: ${ver}`);
                     if (id == "hw" && pxt.hwVariant)
                         id = "hw---" + pxt.hwVariant;
+                    // for github references, make sure the version is compatible with previously
+                    // loaded references, regardless of the id
+                    const ghver = pxt.github.parseRepoId(ver);
+                    if (ghver === null || ghver === void 0 ? void 0 : ghver.slug) {
+                        // let's start by resolving the maximum version
+                        // number of the parent repo already loaded
+                        const repoVersions = Object.values(from.parent.deps)
+                            .map(p => pxt.github.parseRepoId(p._verspec))
+                            .filter(v => (v === null || v === void 0 ? void 0 : v.slug) === ghver.slug)
+                            .map(v => v.tag);
+                        const repoVersion = repoVersions
+                            .reduce((v1, v2) => pxt.semver.strcmp(v1, v2) > 0 ? v1 : v2, "0.0.0");
+                        pxt.debug(`dep: common repo ${ghver.slug} version found ${repoVersion}`);
+                        if (pxt.semver.strcmp(repoVersion, "0.0.0") > 0) {
+                            // now let's check if we have a higher version to use
+                            if (!ghver.tag || pxt.semver.strcmp(repoVersion, ghver.tag) > 0) {
+                                pxt.debug(`dep: upgrade from ${ghver.tag} to ${repoVersion}`);
+                                ghver.tag = repoVersion;
+                                ver = pxt.github.stringifyRepo(ghver, true);
+                            }
+                        }
+                    }
                     let mod = from.resolveDep(id);
                     if (mod) {
                         // check if the current dependecy matches the ones
@@ -14690,6 +14752,8 @@ var pxt;
                     opts.otherMultiVariants.push(etarget);
                 }
                 else {
+                    etarget.target.isNative = opts.target.isNative;
+                    opts.target = etarget.target;
                     ext = einfo;
                     opts.otherMultiVariants = [];
                 }
@@ -14901,11 +14965,11 @@ var pxt;
          * The DAP wrapper is active and the device is connected
          */
         function isConnected() {
-            return !!wrapper && wrapper.io.isConnected();
+            return !!(wrapper === null || wrapper === void 0 ? void 0 : wrapper.isConnected());
         }
         packetio.isConnected = isConnected;
         function isConnecting() {
-            return !!wrapper && wrapper.io.isConnecting();
+            return !!(wrapper === null || wrapper === void 0 ? void 0 : wrapper.isConnecting());
         }
         packetio.isConnecting = isConnecting;
         function icon() {
@@ -15165,6 +15229,11 @@ var pxt;
             return aa.major - bb.major;
         }
         semver.majorCmp = majorCmp;
+        /**
+         * Compares two semver version strings and returns -1 if a < b, 1 if a > b and 0
+         * if versions are equivalent. If a and b are invalid versions, classic strcmp is called.
+         * If a (or b) is an invalid version, it is considered greater than any version (strmp(undefined, "0.0.0") = 1)
+         */
         function strcmp(a, b) {
             let aa = tryParse(a);
             let bb = tryParse(b);
@@ -15356,20 +15425,18 @@ var ts;
         function computeUsedParts(resp, filter) {
             if (!resp.usedSymbols || !pxt.appTarget.simulator || !pxt.appTarget.simulator.parts)
                 return [];
-            let parts = [];
-            Object.keys(resp.usedSymbols).forEach(symbol => {
-                let info = resp.usedSymbols[symbol];
-                if (info && info.attributes.parts) {
-                    let partsRaw = info.attributes.parts;
-                    if (partsRaw) {
-                        let partsSplit = partsRaw.split(/[ ,]+/);
-                        partsSplit.forEach(p => {
-                            if (0 < p.length && parts.indexOf(p) < 0) {
-                                parts.push(p);
-                            }
-                        });
-                    }
+            const parseParts = (partsRaw, ps) => {
+                if (partsRaw) {
+                    const partsSplit = partsRaw.split(/[ ,]+/g);
+                    ps.push(...partsSplit.filter(p => !!p && ps.indexOf(p) < 0));
                 }
+            };
+            let parts = [];
+            let hiddenParts = [];
+            Object.keys(resp.usedSymbols).forEach(symbol => {
+                const info = resp.usedSymbols[symbol];
+                parseParts(info === null || info === void 0 ? void 0 : info.attributes.parts, parts);
+                parseParts(info === null || info === void 0 ? void 0 : info.attributes.hiddenParts, hiddenParts);
             });
             if (filter) {
                 const builtinParts = pxt.appTarget.simulator.boardDefinition.onboardComponents;
@@ -15382,6 +15449,8 @@ var ts;
                     }
                 }
             }
+            // apply hidden parts filter
+            parts = parts.filter(p => hiddenParts.indexOf(p) < 0);
             //sort parts (so breadboarding layout is stable w.r.t. code ordering)
             parts.sort();
             parts = parts.reverse(); //not strictly necessary, but it's a little
@@ -15640,7 +15709,12 @@ var ts;
                 const left = param.substr(0, dotIdx);
                 let right = param.substr(dotIdx + 1);
                 right = pxtc.U.snakify(right).toUpperCase();
-                return `${left}.${right}`;
+                if (left) {
+                    return `${left}.${right}`;
+                }
+                else {
+                    return right;
+                }
             }
             return param;
         }
@@ -15791,7 +15865,7 @@ var ts;
             return r;
         }
         pxtc.emptyExtInfo = emptyExtInfo;
-        const numberAttributes = ["weight", "imageLiteral", "topblockWeight"];
+        const numberAttributes = ["weight", "imageLiteral", "topblockWeight", "inlineInputModeLimit"];
         const booleanAttributes = [
             "advanced",
             "handlerStatement",
@@ -15806,7 +15880,8 @@ var ts;
             "topblock",
             "callInDebugger",
             "duplicateShadowOnDrag",
-            "argsNullable"
+            "argsNullable",
+            "compileHiddenArguments"
         ];
         function parseCommentString(cmt) {
             let res = {
@@ -16560,6 +16635,19 @@ var ts;
         })(UF2 = pxtc.UF2 || (pxtc.UF2 = {}));
     })(pxtc = ts.pxtc || (ts.pxtc = {}));
 })(ts || (ts = {}));
+(function (ts) {
+    var pxtc;
+    (function (pxtc) {
+        var service;
+        (function (service) {
+            let ExtensionType;
+            (function (ExtensionType) {
+                ExtensionType[ExtensionType["Bundled"] = 0] = "Bundled";
+                ExtensionType[ExtensionType["Github"] = 1] = "Github";
+            })(ExtensionType = service.ExtensionType || (service.ExtensionType = {}));
+        })(service = pxtc.service || (pxtc.service = {}));
+    })(pxtc = ts.pxtc || (ts.pxtc = {}));
+})(ts || (ts = {}));
 var pxt;
 (function (pxt) {
     var shell;
@@ -16723,6 +16811,222 @@ var pxt;
         IndexedDBWorkspace.userKey = "id";
         skillmap.IndexedDBWorkspace = IndexedDBWorkspace;
     })(skillmap = pxt.skillmap || (pxt.skillmap = {}));
+})(pxt || (pxt = {}));
+var pxt;
+(function (pxt) {
+    var assets;
+    (function (assets) {
+        assets.MAX_FREQUENCY = 5000;
+        assets.MAX_VOLUME = 255;
+        function renderSoundPath(sound, width, height) {
+            let { startFrequency, endFrequency, startVolume, endVolume, wave, interpolation } = sound;
+            startFrequency = Math.max(Math.min(startFrequency, assets.MAX_FREQUENCY), 1);
+            endFrequency = Math.max(Math.min(endFrequency, assets.MAX_FREQUENCY), 1);
+            startVolume = Math.max(Math.min(startVolume, assets.MAX_VOLUME), 0);
+            endVolume = Math.max(Math.min(endVolume, assets.MAX_VOLUME), 0);
+            // To make the graph appear consistent with the implementation, use a seeded random for the noise waveform.
+            // The numbers are still nonsense but at least this reflects that it's deterministic.
+            const random = new SeededRandom(startFrequency + endFrequency + 1);
+            let getFrequencyAt;
+            switch (interpolation) {
+                case "linear":
+                    getFrequencyAt = x => startFrequency + x * (endFrequency - startFrequency) / width;
+                    break;
+                case "curve":
+                    getFrequencyAt = x => startFrequency + (endFrequency - startFrequency) * Math.sin(x / width * (Math.PI / 2));
+                    break;
+                case "logarithmic":
+                    getFrequencyAt = x => startFrequency + Math.log10(1 + 9 * (x / width)) * (endFrequency - startFrequency);
+                    break;
+            }
+            if (wave === "noise") {
+                getFrequencyAt = () => random.randomRange(500, 5000);
+            }
+            const getVolumeAt = (x) => Math.max(Math.min(((endVolume - startVolume) / width) * x + startVolume, assets.MAX_VOLUME), 0);
+            const minWaveWidth = 10;
+            const maxWaveWidth = width / 2;
+            const volumeToAmplitude = (volume) => (volume / assets.MAX_VOLUME) * (height - 2) / 2;
+            const frequencyToWidth = (frequency) => (1 - frequency / assets.MAX_FREQUENCY) * (maxWaveWidth - minWaveWidth) + minWaveWidth;
+            const parts = [`M ${2} ${height / 2}`];
+            let currentX = 0;
+            while (currentX < width) {
+                parts.push(renderHalfWavePart(volumeToAmplitude(getVolumeAt(currentX)), frequencyToWidth(getFrequencyAt(currentX)) / 2, wave, false, random));
+                currentX += frequencyToWidth(getFrequencyAt(currentX)) / 2;
+                parts.push(renderHalfWavePart(volumeToAmplitude(getVolumeAt(currentX)), frequencyToWidth(getFrequencyAt(currentX)) / 2, wave, true, random));
+                currentX += frequencyToWidth(getFrequencyAt(currentX)) / 2;
+            }
+            return parts.join(" ");
+        }
+        assets.renderSoundPath = renderSoundPath;
+        function renderWaveSnapshot(frequency, volume, wave, width, height, timeBase) {
+            // To make the graph appear consistent with the implementation, use a seeded random for the noise waveform.
+            // The numbers are still nonsense but at least this reflects that it's deterministic.
+            const random = new SeededRandom(frequency);
+            if (wave === "noise")
+                frequency = random.randomRange(500, 5000);
+            frequency = Math.max(Math.min(frequency, assets.MAX_FREQUENCY), 1);
+            const amplitude = (volume / assets.MAX_VOLUME) * (height - 2) / 2;
+            const waveHalfWidth = (width / (frequency * timeBase / 1000)) / 2;
+            let numSegments = Math.ceil(width / (waveHalfWidth * 2));
+            if (numSegments % 2 === 1)
+                numSegments++;
+            // Center the wave because it makes an animation look better. The overflow will be clipped
+            // by the outer svg
+            const parts = [`M ${(width / 2) - (numSegments * waveHalfWidth)} ${height / 2}`];
+            let currentX = 0;
+            for (let i = 0; i < numSegments; i++) {
+                parts.push(renderHalfWavePart(amplitude, waveHalfWidth, wave, false, random));
+                currentX += waveHalfWidth;
+                parts.push(renderHalfWavePart(amplitude, waveHalfWidth, wave, true, random));
+                currentX += waveHalfWidth;
+            }
+            return parts.join(" ");
+        }
+        assets.renderWaveSnapshot = renderWaveSnapshot;
+        class SeededRandom {
+            constructor(seed) {
+                this.seed = seed;
+                this.lfsr = seed;
+            }
+            next() {
+                const n = this.lfsr = (this.lfsr >> 1) ^ ((-(this.lfsr & 1)) & 0xb400);
+                return n / 0xffff;
+            }
+            randomRange(min, max) {
+                return min + (max - min) * this.next();
+            }
+        }
+        function renderHalfWavePart(amplitude, width, wave, flip, random) {
+            switch (wave) {
+                case "triangle":
+                    return `l ${width / 2} ${flip ? amplitude : -amplitude} l ${width / 2} ${flip ? -amplitude : amplitude}`;
+                case "square":
+                    return `v ${flip ? amplitude : -amplitude} h ${width} v ${flip ? -amplitude : amplitude}`;
+                case "sawtooth":
+                    if (flip) {
+                        return `l ${width} ${amplitude} v ${-amplitude}`;
+                    }
+                    else {
+                        return `v ${-amplitude} l ${width} ${amplitude}`;
+                    }
+                case "sine":
+                    return `q ${width / 2} ${(flip ? amplitude : -amplitude) * 1.9} ${width} 0`;
+                case "noise":
+                    const outParts = [];
+                    const points = [];
+                    const slice = Math.min(4, width / 4);
+                    let positive = flip;
+                    for (let x = 0; x < width; x += slice) {
+                        points.push(random.randomRange(0, amplitude) * (positive ? 1 : -1));
+                        positive = !positive;
+                    }
+                    points[0] = flip ? amplitude : -amplitude;
+                    points[points.length - 1] = 0;
+                    let offset = 0;
+                    let x = 0;
+                    for (const point of points) {
+                        let dx = Math.min(slice, width - x);
+                        outParts.push(`v ${point - offset} h ${dx}`);
+                        offset = point;
+                        x += dx;
+                        if (x >= width)
+                            break;
+                    }
+                    return outParts.join(" ");
+            }
+        }
+        function soundToInstructionBuffer(sound, fxSteps, fxRange) {
+            const { startFrequency, endFrequency, startVolume, endVolume, interpolation, duration } = sound;
+            const steps = [];
+            // Optimize the simple case
+            if (sound.interpolation === "linear" && sound.effect === "none") {
+                steps.push({
+                    frequency: startFrequency,
+                    volume: (startVolume / assets.MAX_VOLUME) * 1024,
+                });
+                steps.push({
+                    frequency: endFrequency,
+                    volume: (endVolume / assets.MAX_VOLUME) * 1024,
+                });
+            }
+            else {
+                fxSteps = Math.min(fxSteps, Math.floor(duration / 5));
+                const getVolumeAt = (t) => ((startVolume + t * (endVolume - startVolume) / duration) / assets.MAX_VOLUME) * 1024;
+                let getFrequencyAt;
+                switch (interpolation) {
+                    case "linear":
+                        getFrequencyAt = t => startFrequency + t * (endFrequency - startFrequency) / duration;
+                        break;
+                    case "curve":
+                        getFrequencyAt = t => startFrequency + (endFrequency - startFrequency) * Math.sin(t / duration * (Math.PI / 2));
+                        break;
+                    case "logarithmic":
+                        getFrequencyAt = t => startFrequency + Math.log10(1 + 9 * (t / duration)) * (endFrequency - startFrequency);
+                        break;
+                }
+                const timeSlice = duration / fxSteps;
+                for (let i = 0; i < fxSteps; i++) {
+                    const newStep = {
+                        frequency: Math.max(getFrequencyAt(i * timeSlice), 1),
+                        volume: getVolumeAt(i * timeSlice)
+                    };
+                    if (sound.effect === "tremolo") {
+                        if (i % 2 === 0) {
+                            newStep.volume = Math.max(newStep.volume - fxRange * 500, 0);
+                        }
+                        else {
+                            newStep.volume = Math.min(newStep.volume + fxRange * 500, 1023);
+                        }
+                    }
+                    else if (sound.effect === "vibrato") {
+                        if (i % 2 === 0) {
+                            newStep.frequency = Math.max(newStep.frequency - fxRange * 100, 1);
+                        }
+                        else {
+                            newStep.frequency = newStep.frequency + fxRange * 100;
+                        }
+                    }
+                    else if (sound.effect === "warble") {
+                        if (i % 2 === 0) {
+                            newStep.frequency = Math.max(newStep.frequency - fxRange * 1000, 1);
+                        }
+                        else {
+                            newStep.frequency = newStep.frequency + fxRange * 1000;
+                        }
+                    }
+                    steps.push(newStep);
+                }
+            }
+            const out = new Uint8Array(12 * (steps.length - 1));
+            const stepDuration = Math.floor(duration / (steps.length - 1));
+            for (let i = 0; i < steps.length - 1; i++) {
+                const offset = i * 12;
+                out[offset] = waveToValue(sound.wave);
+                set16BitNumber(out, offset + 2, steps[i].frequency);
+                set16BitNumber(out, offset + 4, stepDuration);
+                set16BitNumber(out, offset + 6, steps[i].volume);
+                set16BitNumber(out, offset + 8, steps[i + 1].volume);
+                set16BitNumber(out, offset + 10, steps[i + 1].frequency);
+            }
+            return out;
+        }
+        assets.soundToInstructionBuffer = soundToInstructionBuffer;
+        function waveToValue(wave) {
+            switch (wave) {
+                case "square": return 15;
+                case "sine": return 3;
+                case "triangle": return 1;
+                case "noise": return 18;
+                case "sawtooth": return 2;
+            }
+        }
+        function set16BitNumber(buf, offset, value) {
+            const temp = new Uint8Array(2);
+            new Uint16Array(temp.buffer)[0] = value | 0;
+            buf[offset] = temp[0];
+            buf[offset + 1] = temp[1];
+        }
+    })(assets = pxt.assets || (pxt.assets = {}));
 })(pxt || (pxt = {}));
 // See https://github.com/microsoft/TouchDevelop-backend/blob/master/docs/streams.md
 var pxt;
@@ -17130,6 +17434,10 @@ var pxt;
             path(cb) {
                 cb(this.d);
                 return this.update();
+            }
+            setD(d) {
+                this.setAttribute("d", d);
+                return this;
             }
         }
         svgUtil.Path = Path;
@@ -17843,7 +18151,7 @@ var pxt;
                 id,
                 type: "tilemap" /* Tilemap */,
                 meta: {
-                    displayName: id
+                    displayName: name || id
                 },
                 data: data
             });
@@ -21340,6 +21648,18 @@ var ts;
                 }
             }
             assembler.Line = Line;
+            const MAX_OBJ_USERS = 5;
+            class AsmObject {
+                constructor(id, description) {
+                    this.id = id;
+                    this.description = description;
+                    this.sizeAdj = 0;
+                    this.users = [];
+                }
+                get size() {
+                    return (this.endLocation - this.startLocation) - this.sizeAdj;
+                }
+            }
             // File is the center of the action: parsing a file into a sequence of Lines
             // and also emitting the binary (buf)
             class File {
@@ -21364,6 +21684,11 @@ var ts;
                     this.throwOnError = false;
                     this.disablePeepHole = false;
                     this.stackAtLabel = {};
+                    this.codeSizeStats = false;
+                    this.labelToObject = {};
+                    this.idToObject = {};
+                    this.objSuspendStart = 0;
+                    this.labelsToObjectDone = false;
                     this.currLine = new Line(this, "<start>");
                     this.currLine.lineNo = 0;
                     this.ei = ei;
@@ -21382,6 +21707,15 @@ var ts;
                 }
                 pc() {
                     return this.location() + this.baseOffset;
+                }
+                useLabel(name) {
+                    if (!this.currObject || name[0] == '.' || this.objSuspendStart)
+                        return;
+                    const obj = pxtc.U.lookup(this.labelToObject, name);
+                    if (!obj || obj == this.currObject)
+                        return;
+                    if (obj.users.length < MAX_OBJ_USERS && obj.users.indexOf(this.currObject) < 0)
+                        obj.users.push(this.currObject);
                 }
                 // parsing of an "integer", well actually much more than
                 // just that
@@ -21512,6 +21846,7 @@ var ts;
                         return name;
                 }
                 lookupLabel(name, direct = false) {
+                    this.useLabel(name);
                     let v = null;
                     let scoped = this.scopedName(name);
                     if (this.labels.hasOwnProperty(scoped)) {
@@ -21670,6 +22005,37 @@ var ts;
                     };
                     let num0;
                     switch (words[0]) {
+                        case ".object":
+                            if (!this.codeSizeStats) {
+                                // do nothing
+                            }
+                            else if (words[1] == "PUSH") {
+                                this.objSuspendStart = this.location();
+                            }
+                            else if (words[1] == "POP") {
+                                if (this.objSuspendStart)
+                                    this.currObject.sizeAdj += this.location() - this.objSuspendStart;
+                                this.objSuspendStart = 0;
+                            }
+                            else {
+                                if (this.currObject)
+                                    this.currObject.endLocation = this.location();
+                                this.currObject = pxtc.U.lookup(this.idToObject, words[1]);
+                                if (!this.currObject) {
+                                    const str = l.text.replace(/^[^"]*/, "");
+                                    let parsed = words[1];
+                                    if (words.length > 2) {
+                                        parsed = parseString(str.trim());
+                                        if (parsed == null)
+                                            this.directiveError(lf("expecting string in .object"));
+                                    }
+                                    this.currObject = new AsmObject(words[1], parsed);
+                                    this.idToObject[words[1]] = this.currObject;
+                                }
+                                this.currObject.sizeAdj = 0;
+                                this.currObject.startLocation = this.location();
+                            }
+                            break;
                         case ".ascii":
                         case ".asciz":
                         case ".string":
@@ -21864,6 +22230,8 @@ var ts;
                     }
                 }
                 handleOneInstruction(ln, instr) {
+                    if (this.codeSizeStats && ln.ldlitLabel)
+                        this.useLabel(ln.ldlitLabel);
                     let op = instr.emit(ln);
                     if (!op.error) {
                         this.stack += op.stack;
@@ -21972,6 +22340,8 @@ var ts;
                         if (l.words.length == 0)
                             return;
                         if (l.type == "label") {
+                            if (this.currObject && !this.labelsToObjectDone && l.words[0][0] != '.')
+                                this.labelToObject[l.words[0]] = this.currObject;
                             let lblname = this.scopedName(l.words[0]);
                             this.prevLabel = lblname;
                             if (this.finalEmit) {
@@ -22012,6 +22382,8 @@ var ts;
                             pxtc.oops();
                         }
                     });
+                    this.labelsToObjectDone = true;
+                    this.currObject = null;
                 }
                 getSourceMap() {
                     const sourceMap = {};
@@ -22044,6 +22416,22 @@ var ts;
                     }
                     return sourceMap;
                 }
+                getCodeSizeStats() {
+                    if (!this.codeSizeStats)
+                        return "";
+                    const objs = pxtc.U.values(this.idToObject);
+                    objs.sort((a, b) => b.size - a.size);
+                    let r = ";\n; Code size:\n;\n";
+                    for (const obj of objs) {
+                        r += `; ${("         " + obj.size).slice(-6)} ${obj.description} [${obj.id}]\n`;
+                        if (obj.users.length >= MAX_OBJ_USERS)
+                            r += `;        by many, including ${obj.users[0].description}\n`;
+                        else
+                            for (const x of obj.users)
+                                r += `;        by ${x.description} [${x.id}]\n`;
+                    }
+                    return r;
+                }
                 getSource(clean, numStmts = 1, flashSize = 0) {
                     let lenPrev = 0;
                     let size = (lbl) => {
@@ -22059,8 +22447,11 @@ var ts;
                     let lenLiterals = size("_literals_end");
                     let lenAllCode = lenPrev;
                     let totalSize = (lenTotal + this.baseOffset) & 0xffffff;
-                    if (flashSize && totalSize > flashSize)
-                        pxtc.U.userError(lf("program too big by {0} bytes!", totalSize - flashSize));
+                    if (flashSize && totalSize > flashSize) {
+                        const e = new Error(lf("program too big by {0} bytes!", totalSize - flashSize));
+                        e.ksErrorCode = 9283;
+                        throw e;
+                    }
                     flashSize = flashSize || 128 * 1024;
                     let totalInfo = lf("; total bytes: {0} ({1}% of {2}k flash with {3} free)", totalSize, (100 * totalSize / flashSize).toFixed(1), (flashSize / 1024).toFixed(1), flashSize - totalSize);
                     let res = 
@@ -22068,7 +22459,7 @@ var ts;
                     lf("; generated code sizes (bytes): {0} (incl. {1} user, {2} helpers, {3} vtables, {4} lits); src size {5}\n", lenAllCode, lenCode, lenHelpers, lenVtables, lenLiterals, lenTotal - lenAllCode) +
                         lf("; assembly: {0} lines; density: {1} bytes/stmt; ({2} stmts)\n", this.lines.length, Math.round(100 * lenCode / numStmts) / 100, numStmts) +
                         totalInfo + "\n" +
-                        this.stats + "\n\n";
+                        this.stats + this.getCodeSizeStats() + "\n\n";
                     let skipOne = false;
                     this.lines.forEach((ln, i) => {
                         if (ln.words[0] == "_stored_program") {
