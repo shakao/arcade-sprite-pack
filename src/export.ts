@@ -233,6 +233,90 @@ export async function downloadScaledSprites(scaleFactor: number) {
     }
 }
 
+declare const GIF: any;
+
+function toHexColor(i: number) {
+    let color = i.toString(16);
+
+    while (color.length < 6) {
+        color = "0" + color;
+    }
+
+    return "#" + color;
+}
+
+export async function exportAnimationsAsGifs(scaleFactor: number) {
+    const project = getTilemapProject();
+
+    const animations = project.getAssets(AssetType.Animation) as pxt.Animation[];
+    const palette = getProjectPalette();
+
+    let alphaColor: number;
+
+    for (let i = 0; i < 17; i++) {
+        const color = toHexColor(i);
+        alphaColor = i;
+
+        if (!palette.some(c => c.toLowerCase() === color.toLowerCase())) {
+            break;
+        }
+    }
+
+    const rendered = await Promise.all(animations.map(async animation => {
+        const gif = new GIF({
+            workers: 2,
+            quality: 1,
+            transparent: alphaColor
+        });
+
+        for (const frame of animation.frames) {
+            const canvas = document.createElement("canvas");
+            canvas.width = frame.width * scaleFactor;
+            canvas.height = frame.height * scaleFactor;
+
+            const context = canvas.getContext("2d")!;
+
+            context.clearRect(0, 0, canvas.width, canvas.height)
+
+            const bitmap = pxt.sprite.Bitmap.fromData(frame);
+
+            for (let x = 0; x < bitmap.width; x++) {
+                for (let y = 0; y < bitmap.height; y++) {
+                    const pixel = bitmap.get(x, y);
+                    if (pixel) {
+                        context!.fillStyle = palette[pixel];
+                        context!.fillRect(x * scaleFactor, y * scaleFactor, scaleFactor, scaleFactor);
+                    }
+                    else {
+                        context.fillStyle = toHexColor(alphaColor)
+                        context!.fillRect(x * scaleFactor, y * scaleFactor, scaleFactor, scaleFactor)
+                    }
+                }
+            }
+
+            gif.addFrame(canvas, { delay: animation.interval });
+        }
+
+        return render(gif);
+    }));
+
+    for (let i = 0; i < rendered.length; i++) {
+        browserDownloadDataUri(URL.createObjectURL(rendered[i]), "animation" + i + ".gif")
+    }
+}
+
+function render(gif: GIF): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+        gif.on("finished", (blob, data) => {
+            resolve(blob);
+        });
+
+        gif.on("abort", reject);
+
+        gif.render();
+    })
+}
+
 
 // function createProjectBlobAsyncOld(name: string, assetTS: string, assetJRES: string, testTS: string) {
 //     const config = JSON.stringify({

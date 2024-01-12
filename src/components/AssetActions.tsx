@@ -3,7 +3,7 @@ import { newTilemapProject } from "../project";
 import { AlertProps } from "./Alert";
 
 import '../styles/AssetActions.css';
-import { downloadProjectAsync, downloadScaledSprites } from "../export";
+import { downloadProjectAsync, downloadScaledSprites, exportAnimationsAsGifs } from "../export";
 import { importScriptAsync } from "../import";
 
 
@@ -99,7 +99,27 @@ function onExportButtonClick(props: AssetActionsProps) {
                                 {
                                     text: "Export",
                                     onClick: (input) => {
-                                        if (input) downloadScaledSprites(parseInt(input));
+                                        downloadScaledSprites(input ? parseInt(input) : 1);
+                                    }
+                                }]
+                        });
+                    }, 100)
+                }
+            },
+            {
+                text: "Export animations as GIFs",
+                onClick: (input) => {
+                    setTimeout(() => {
+                        showAlert({
+                            type: "scale",
+                            icon: "download",
+                            title: "Export animations as GIFs",
+                            text: "Enter scale factor",
+                            options: [
+                                {
+                                    text: "Export",
+                                    onClick: (input) => {
+                                        exportAnimationsAsGifs(input ? parseInt(input) : 1)
                                     }
                                 }]
                         });
