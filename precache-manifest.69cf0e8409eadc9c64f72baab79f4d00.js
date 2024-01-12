@@ -1,23 +1,23 @@
 self.__precacheManifest = (self.__precacheManifest || []).concat([
   {
-    "revision": "0a4796bfb19e2f2f4c74b94fab2bf8c1",
+    "revision": "b940c74b1e8f789d26df1d452cbe2136",
     "url": "/arcade-sprite-pack/index.html"
   },
   {
-    "revision": "27fbb759013d2e5aac50",
+    "revision": "0feebaebcb83970d61a3",
     "url": "/arcade-sprite-pack/static/css/main.eef947b3.chunk.css"
   },
   {
-    "revision": "a8fbe33b9f8f35a6b113",
-    "url": "/arcade-sprite-pack/static/js/2.09115f4a.chunk.js"
+    "revision": "8e149063055e654fb941",
+    "url": "/arcade-sprite-pack/static/js/2.9a7c1862.chunk.js"
   },
   {
     "revision": "570d362d673dab785e62d2b8563e1118",
-    "url": "/arcade-sprite-pack/static/js/2.09115f4a.chunk.js.LICENSE.txt"
+    "url": "/arcade-sprite-pack/static/js/2.9a7c1862.chunk.js.LICENSE.txt"
   },
   {
-    "revision": "27fbb759013d2e5aac50",
-    "url": "/arcade-sprite-pack/static/js/main.723889e4.chunk.js"
+    "revision": "0feebaebcb83970d61a3",
+    "url": "/arcade-sprite-pack/static/js/main.97cb035f.chunk.js"
   },
   {
     "revision": "8273726a85d79466ed01",
