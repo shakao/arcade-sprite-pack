@@ -451,3 +451,73 @@ export async function downloadTypeScriptAsync(name: string, assets: AssetInfo[])
         return escaped + index;
     }
 }
+
+export async function downloadTilesetAsync(categoryName: string) {
+    const config = {
+        "name": categoryName,
+        "dependencies": {
+            "device": "*" // required for arcade
+        },
+        "description": "An asset pack for MakeCode Arcade",
+        "files": [
+            "tiles.jres",
+            "tiles.ts"
+        ],
+        "testFiles": [
+        ]
+    };
+
+
+
+    const files: {[index: string]: string} = {};
+
+    const project = getTilemapProject();
+
+    const tmjres = project.getProjectTilesetJRes();
+
+    const namespaceName = "customTiles_" + categoryName;
+
+    tmjres["*"].namespace = namespaceName;
+
+    let outTs = "";
+
+    for (const key of Object.keys(tmjres)) {
+        if (key === "*") continue;
+        const entry = tmjres[key];
+
+        if (entry.mimeType === pxt.TILEMAP_MIME_TYPE) {
+            delete tmjres[key];
+            continue;
+        }
+
+        let id = key;
+        if (key.indexOf("myTiles.") === 0) {
+            delete tmjres[key];
+            id = namespaceName + "." + (key.split(".")[1])
+            tmjres[id] = entry;
+        }
+
+        outTs += `    //% fixedInstance jres blockIdentity=images._tile\n`
+        outTs += `    //% tags="tile category-${categoryName}"\n`
+        outTs += `    export const ${key} = image.ofBuffer(hex\`\`);\n`
+    }
+
+    outTs = `namespace ${namespaceName} {\n${outTs}}\n`;
+
+    files[PXT_JSON] = JSON.stringify(config, null, 4);
+    files["tiles.ts"] = outTs;
+    files["tiles.jres"] = JSON.stringify(tmjres, null, 4);
+
+    const out: PXTHexFile = {
+        meta: {
+            cloudId: "pxt/arcade",
+            targetVersions: {},
+            name: categoryName,
+            editor: "tsprj"
+        },
+        source: JSON.stringify(files)
+    };
+
+    const blob = await lzmaCompressAsync(JSON.stringify(out));
+    return browserDownloadUInt8Array(blob, categoryName + ".mkcd");
+}

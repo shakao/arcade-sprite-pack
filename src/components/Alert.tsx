@@ -65,6 +65,9 @@ export class Alert extends React.Component<AlertProps, AlertState> {
                 {type === "scale" && <div className="asset-import">
                     <input ref={this.handleImportInputRef} placeholder="1" />
                 </div>}
+                {type === "tileset" && <div className="asset-import">
+                    <input ref={this.handleImportInputRef} placeholder="CustomTiles" />
+                </div>}
                 {options && <div className="alert-options">
                     {options.map((el, i) => {
                         const onClick = () => {

@@ -3,7 +3,7 @@ import { newTilemapProject } from "../project";
 import { AlertProps } from "./Alert";
 
 import '../styles/AssetActions.css';
-import { downloadProjectAsync, downloadScaledSprites, exportAnimationsAsGifs } from "../export";
+import { downloadProjectAsync, downloadScaledSprites, downloadTilesetAsync, exportAnimationsAsGifs } from "../export";
 import { importScriptAsync } from "../import";
 
 
@@ -84,6 +84,26 @@ function onExportButtonClick(props: AssetActionsProps) {
                 text: "Export .mkcd file",
                 onClick: (input) => {
                     downloadProjectAsync("project");
+                }
+            },
+            {
+                text: "Export tileset .mkcd file",
+                onClick: (input) => {
+                    setTimeout(() => {
+                        showAlert({
+                            icon: "download",
+                            title: "Download Tileset",
+                            text: "Enter a name for the tileset category. Only letters and numbers are allowed (no spaces).",
+                            type: "tileset",
+                            options: [{
+                                text: "download",
+                                onClick: (input) => {
+                                    input = input?.replace(/[^a-zA-Z\d]/, "") || "CustomTiles";
+                                    downloadTilesetAsync(input);
+                                }
+                            }]
+                        })
+                    })
                 }
             },
             {
