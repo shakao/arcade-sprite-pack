@@ -1,10 +1,10 @@
 self.__precacheManifest = (self.__precacheManifest || []).concat([
   {
-    "revision": "b940c74b1e8f789d26df1d452cbe2136",
+    "revision": "c4cdd0b4d7dfd4c89e63c52756ad2a00",
     "url": "/arcade-sprite-pack/index.html"
   },
   {
-    "revision": "0feebaebcb83970d61a3",
+    "revision": "0792c39d73195f58ec13",
     "url": "/arcade-sprite-pack/static/css/main.eef947b3.chunk.css"
   },
   {
@@ -16,8 +16,8 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/arcade-sprite-pack/static/js/2.9a7c1862.chunk.js.LICENSE.txt"
   },
   {
-    "revision": "0feebaebcb83970d61a3",
-    "url": "/arcade-sprite-pack/static/js/main.97cb035f.chunk.js"
+    "revision": "0792c39d73195f58ec13",
+    "url": "/arcade-sprite-pack/static/js/main.3160285a.chunk.js"
   },
   {
     "revision": "8273726a85d79466ed01",
